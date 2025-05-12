@@ -181,8 +181,12 @@ public class BookListFragment extends Fragment implements BookGridAdapter.OnBook
                                         String desc = (String) data.get("deseridsion");
                                         String lang = (String) data.get("booklan");
                                         String photo = (String) data.get("photo");
+                                        String pdfUrl = (String) data.get("pdfUrl");
                                         
                                         Book manualBook = new Book(name, date, desc, lang, photo);
+                                        if (pdfUrl != null && !pdfUrl.isEmpty()) {
+                                            manualBook.setPdfUrl(pdfUrl);
+                                        }
                                         Log.d(TAG, "Manually created book: " + manualBook);
                                         bookList.add(manualBook);
                                     }

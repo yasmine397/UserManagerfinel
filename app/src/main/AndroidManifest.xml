@@ -35,6 +35,10 @@
         <activity
             android:name=".Main.sampledata.MainActivity"
             android:exported="false" />
+        <activity
+            android:name=".pdf.PdfViewerActivity"
+            android:exported="false"
+            android:label="PDF Viewer" />
     </application>
 
 </manifest>

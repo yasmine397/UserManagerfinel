@@ -4,4 +4,5 @@
     <color name="white">#FFFFFF</color>
     <color name="nevyred_8">@color/text_icon_background</color>
     <color name="dark_red">#440601</color>
+    <color name="purple_500">#6200EE</color>
 </resources>

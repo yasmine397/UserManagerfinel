@@ -34,7 +34,7 @@ import com.squareup.picasso.Picasso;
 public class AddDataFragment extends Fragment {
     private static final String TAG = "AddDataFragment"; // Tag for logging
     private static final int GALLARY_REQUEST_CODE = 123;
-    private EditText etBName, etBDate, etBDeserid, etBLan, etImageUrl;
+    private EditText etBName, etBDate, etBDeserid, etBLan, etImageUrl, etPdfUrl;
     private Button btnAdd;
     private FirebaseServices fbs;
     private TextView Start;
@@ -116,6 +116,7 @@ public class AddDataFragment extends Fragment {
             etBDeserid = getView().findViewById(R.id.etMainDeseridsion);
             etBLan = getView().findViewById(R.id.etMainBookLan);
             etImageUrl = getView().findViewById(R.id.etImageUrl);
+            etPdfUrl = getView().findViewById(R.id.etPdfUrl);
             btnAdd = getView().findViewById(R.id.btnAdd);
             img = getView().findViewById(R.id.ivBookImage);
             Start = getView().findViewById(R.id.tvStart);
@@ -200,6 +201,7 @@ public class AddDataFragment extends Fragment {
             String deserid = etBDeserid.getText().toString().trim();
             String blan = etBLan.getText().toString().trim();
             String imageUrl = etImageUrl.getText().toString().trim();
+            String pdfUrl = etPdfUrl != null ? etPdfUrl.getText().toString().trim() : "";
 
             if (name.isEmpty() || date.isEmpty() || deserid.isEmpty() || blan.isEmpty()) {
                 Toast.makeText(getActivity(), "Please fill all required fields", Toast.LENGTH_SHORT).show();
@@ -208,8 +210,8 @@ public class AddDataFragment extends Fragment {
             
             showProgressMessage("Adding book...");
             
-            // Save the book directly with the provided image URL
-            saveBookToFirestore(name, date, deserid, blan, imageUrl);
+            // Save the book directly with the provided image URL and PDF URL
+            saveBookToFirestore(name, date, deserid, blan, imageUrl, pdfUrl);
             
         } catch (Exception e) {
             Log.e(TAG, "addBook: Error adding book", e);
@@ -217,8 +219,8 @@ public class AddDataFragment extends Fragment {
         }
     }
     
-    private void saveBookToFirestore(String name, String date, String deserid, String blan, String photoUrl) {
-        Book book = new Book(name, date, deserid, blan, photoUrl);
+    private void saveBookToFirestore(String name, String date, String deserid, String blan, String photoUrl, String pdfUrl) {
+        Book book = new Book(name, date, deserid, blan, photoUrl, pdfUrl);
         
         fbs.getFire().collection("books").add(book)
                 .addOnSuccessListener(new OnSuccessListener<DocumentReference>() {

@@ -40,17 +40,16 @@ public class MainActivity extends AppCompatActivity {
 
         bottomNav.setOnNavigationItemSelectedListener(item -> {
             Fragment selectedFragment = null;
-            switch (item.getItemId()) {
-                case R.id.nav_home:
-                    selectedFragment = new HomeFragment();
-                    break;
-                case R.id.nav_library:
-                    selectedFragment = new LibraryFragment();
-                    break;
-                case R.id.nav_profile:
-                    selectedFragment = new UserProfileFragment();
-                    break;
+            int itemId = item.getItemId();
+            
+            if (itemId == R.id.nav_home) {
+                selectedFragment = new HomeFragment();
+            } else if (itemId == R.id.nav_library) {
+                selectedFragment = new LibraryFragment();
+            } else if (itemId == R.id.nav_profile) {
+                selectedFragment = new UserProfileFragment();
             }
+            
             if (selectedFragment != null) {
                 getSupportFragmentManager().beginTransaction()
                         .replace(R.id.fragment_container, selectedFragment)

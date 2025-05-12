@@ -90,6 +90,69 @@ public class LibraryFragment extends Fragment {
         FirebaseUser currentUser = FirebaseAuth.getInstance().getCurrentUser();
         if (currentUser == null) return;
 
+        // Query the user_library collection directly
+        db.collection("user_library")
+                .whereEqualTo("userId", currentUser.getUid())
+                .get()
+                .addOnSuccessListener(queryDocumentSnapshots -> {
+                    bookList.clear();
+                    for (DocumentSnapshot doc : queryDocumentSnapshots) {
+                        try {
+                            // Create a book object from the library data
+                            Book book = new Book();
+                            
+                            // Get the book details
+                            book.setName(doc.getString("title"));
+                            book.setDeseridsion(doc.getString("description"));
+                            book.setPhoto(doc.getString("coverUrl"));
+                            book.setPdfUrl(doc.getString("pdfUrl"));
+                            book.setStatus(doc.getString("status"));
+                            
+                            // Set the bookId from the document data
+                            String savedBookId = doc.getString("bookId");
+                            if (savedBookId != null && !savedBookId.isEmpty()) {
+                                book.setBookId(savedBookId);
+                            } else {
+                                // Fallback to document ID without user ID prefix
+                                String docId = doc.getId();
+                                if (docId.contains("_")) {
+                                    // Try to extract bookId from document ID (userId_bookId format)
+                                    book.setBookId(docId.substring(docId.indexOf("_") + 1));
+                                } else {
+                                    book.setBookId(docId);
+                                }
+                            }
+                            
+                            bookList.add(book);
+                        } catch (Exception e) {
+                            // Log error but continue with other books
+                            e.printStackTrace();
+                        }
+                    }
+                    
+                    // Update UI after all books are loaded
+                    adapter.notifyDataSetChanged();
+                    
+                    // If we still have the old method data, add a fallback for backward compatibility
+                    if (bookList.isEmpty()) {
+                        loadLegacyLibraryBooks();
+                    }
+                })
+                .addOnFailureListener(e -> {
+                    // Fallback to old method in case of failure
+                    e.printStackTrace();
+                    loadLegacyLibraryBooks();
+                });
+    }
+
+    /**
+     * Legacy method to load library books for backward compatibility
+     */
+    private void loadLegacyLibraryBooks() {
+        FirebaseFirestore db = FirebaseFirestore.getInstance();
+        FirebaseUser currentUser = FirebaseAuth.getInstance().getCurrentUser();
+        if (currentUser == null) return;
+
         db.collection("user_book_status")
                 .whereEqualTo("userId", currentUser.getUid())
                 .whereIn("status", Arrays.asList("want to read", "read"))
@@ -99,15 +162,18 @@ public class LibraryFragment extends Fragment {
                     for (DocumentSnapshot doc : queryDocumentSnapshots) {
                         String bookId = doc.getString("bookId");
                         String status = doc.getString("status");
-                        db.collection("books").document(bookId).get()
-                                .addOnSuccessListener(bookDoc -> {
-                                    Book book = bookDoc.toObject(Book.class);
-                                    if (book != null) {
-                                        book.setStatus(status);
-                                        bookList.add(book);
-                                        adapter.notifyDataSetChanged();
-                                    }
-                                });
+                        if (bookId != null) {
+                            db.collection("books").document(bookId).get()
+                                    .addOnSuccessListener(bookDoc -> {
+                                        Book book = bookDoc.toObject(Book.class);
+                                        if (book != null) {
+                                            book.setStatus(status);
+                                            book.setBookId(bookId);
+                                            bookList.add(book);
+                                            adapter.notifyDataSetChanged();
+                                        }
+                                    });
+                        }
                     }
                 });
     }

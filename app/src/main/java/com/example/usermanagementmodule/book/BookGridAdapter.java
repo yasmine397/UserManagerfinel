@@ -78,6 +78,16 @@ public class BookGridAdapter extends RecyclerView.Adapter<BookGridAdapter.BookVi
             bundle.putString("title", book.getName());
             bundle.putString("description", book.getDeseridsion());
             bundle.putString("imageUrl", book.getPhoto());
+            bundle.putString("pdfUrl", book.getPdfUrl());
+
+            // Use the bookId if available, otherwise use the name as ID
+            // Note: The BookDetail fragment will sanitize this ID itself
+            String bookId = book.getBookId();
+            if (bookId == null || bookId.isEmpty()) {
+                bookId = book.getName(); // Fallback to name
+            }
+
+            bundle.putString("bookId", bookId);
 
             FragmentTransaction transaction = ((FragmentActivity) context)
                     .getSupportFragmentManager()

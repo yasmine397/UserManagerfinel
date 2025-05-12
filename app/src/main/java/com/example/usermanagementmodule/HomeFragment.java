@@ -136,7 +136,7 @@ public class HomeFragment extends Fragment {
             
             BookListFragment bookListFragment = new BookListFragment();
             FragmentTransaction ft = getActivity().getSupportFragmentManager().beginTransaction();
-            ft.replace(R.id.frameLayout2, bookListFragment);
+            ft.replace(R.id.fragment_container, bookListFragment);
             ft.addToBackStack("HomeFragment");
             ft.commit();
             
@@ -155,7 +155,7 @@ public class HomeFragment extends Fragment {
             }
             
             FragmentTransaction ft = getActivity().getSupportFragmentManager().beginTransaction();
-            ft.replace(R.id.frameLayout2, new AddDataFragment());
+            ft.replace(R.id.fragment_container, new AddDataFragment());
             ft.addToBackStack(null);
             ft.commit();
         } catch (Exception e) {
@@ -171,7 +171,7 @@ public class HomeFragment extends Fragment {
             // Navigate back to login screen
             if (getActivity() != null) {
                 FragmentTransaction ft = getActivity().getSupportFragmentManager().beginTransaction();
-                ft.replace(R.id.frameLayout2, new LoginFragment());
+                ft.replace(R.id.fragment_container, new LoginFragment());
                 ft.commit();
                 
                 Toast.makeText(getContext(), "Successfully signed out", Toast.LENGTH_SHORT).show();
