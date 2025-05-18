@@ -13,6 +13,24 @@
         android:padding="16dp">
 
         <!-- Book Cover and Header Section -->
+
+        <ImageButton
+            android:id="@+id/buttonBack"
+            android:layout_width="40dp"
+            android:layout_height="40dp"
+            android:layout_marginStart="348dp"
+            android:layout_marginEnd="7dp"
+            android:layout_marginBottom="3dp"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:contentDescription="Back"
+            android:src="@android:drawable/ic_media_previous"
+            app:layout_constraintBottom_toTopOf="@+id/addToLibraryButton"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toTopOf="parent"
+            app:tint="@color/black"
+            tools:ignore="TouchTargetSizeCheck" />
+
         <ImageView
             android:id="@+id/bookCover"
             android:layout_width="120dp"
@@ -50,52 +68,35 @@
             app:layout_constraintStart_toStartOf="@id/bookTitle"
             app:layout_constraintTop_toBottomOf="@id/bookTitle" />
 
+        <!-- Add to Library Button (replaced spinner) -->
+
+
+
         <TextView
             android:id="@+id/ratingValueText"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_marginStart="8dp"
+            android:layout_marginStart="16dp"
             android:textColor="#990000"
             android:textSize="14sp"
             app:layout_constraintBottom_toBottomOf="@id/ratingBarAverage"
             app:layout_constraintStart_toEndOf="@id/ratingBarAverage"
             app:layout_constraintTop_toTopOf="@id/ratingBarAverage"
+            app:layout_constraintVertical_bias="0.0"
             tools:text="4.5" />
-
-        <!-- Book Status Spinner -->
-        <TextView
-            android:id="@+id/statusLabel"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="16dp"
-            android:text="Status:"
-            android:textColor="@android:color/black"
-            app:layout_constraintStart_toStartOf="@id/bookTitle"
-            app:layout_constraintTop_toBottomOf="@id/ratingBarAverage" />
-
-        <Spinner
-            android:id="@+id/book_status_spinner"
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_marginStart="8dp"
-            android:entries="@array/book_status_options"
-            app:layout_constraintBottom_toBottomOf="@id/statusLabel"
-            app:layout_constraintEnd_toEndOf="parent"
-            app:layout_constraintStart_toEndOf="@id/statusLabel"
-            app:layout_constraintTop_toTopOf="@id/statusLabel" />
 
         <!-- Read Button -->
         <Button
             android:id="@+id/readButton"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
-            android:layout_marginTop="16dp"
+            android:layout_marginTop="8dp"
             android:backgroundTint="@color/purple_500"
             android:text="Read PDF"
             android:textColor="@android:color/white"
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintStart_toStartOf="@id/bookTitle"
-            app:layout_constraintTop_toBottomOf="@id/statusLabel" />
+            app:layout_constraintTop_toBottomOf="@id/addToLibraryButton" />
 
         <!-- New divider to separate sections -->
         <View
@@ -137,6 +138,19 @@
             app:layout_constraintTop_toBottomOf="@id/descriptionLabel" />
 
         <!-- Another divider -->
+        <Button
+            android:id="@+id/addToLibraryButton"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="4dp"
+            android:backgroundTint="@color/purple_500"
+            android:text="Add to Library"
+            android:textColor="@android:color/white"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintHorizontal_bias="0.0"
+            app:layout_constraintStart_toStartOf="@id/bookTitle"
+            app:layout_constraintTop_toBottomOf="@id/ratingBarAverage" />
+
         <View
             android:id="@+id/divider2"
             android:layout_width="match_parent"

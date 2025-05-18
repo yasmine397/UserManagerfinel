@@ -1,13 +1,13 @@
 package com.example.usermanagementmodule.book;
 
 import android.Manifest;
-import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.os.Bundle;
 import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.Button;
 import android.widget.ProgressBar;
 import android.widget.TextView;
 import android.widget.Toast;
@@ -20,11 +20,12 @@ import androidx.fragment.app.Fragment;
 import androidx.recyclerview.widget.GridLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
-import com.example.usermanagementmodule.Main.sampledata.FirebaseServices;
+import com.example.usermanagementmodule.utils.FirebaseServices;
 import com.example.usermanagementmodule.R;
-import com.example.usermanagementmodule.utils.BookDownloadManager;
+import com.example.usermanagementmodule.ui.library.BookDownloadManager;
 import com.google.firebase.firestore.CollectionReference;
 import com.google.firebase.firestore.DocumentSnapshot;
+import com.google.firebase.firestore.FirebaseFirestore;
 import com.google.firebase.firestore.FirebaseFirestoreException;
 import com.google.firebase.firestore.QuerySnapshot;
 
@@ -109,6 +110,16 @@ public class BookListFragment extends Fragment implements BookGridAdapter.OnBook
         progressBar = getView().findViewById(R.id.progressBar);
         tvEmptyList = getView().findViewById(R.id.tvEmptyList);
         
+        // Set up sign out button
+        Button btnSignOut = getView().findViewById(R.id.btnSignOut);
+        if (btnSignOut != null) {
+            btnSignOut.setOnClickListener(v -> {
+                // Use the enhanced logout method which navigates to WelcomeActivity
+                FirebaseServices.getInstance()
+                    .logoutAndRedirect(getActivity());
+            });
+        }
+        
         Log.d(TAG, "setupViews completed successfully");
     }
 
@@ -135,16 +146,18 @@ public class BookListFragment extends Fragment implements BookGridAdapter.OnBook
         showLoading(true);
         Log.d(TAG, "Starting to load books from Firebase");
         
-        // First check if Firebase is properly initialized
+        // Check if we have direct access to Firestore, regardless of login status
+        FirebaseFirestore db;
         if (fbs == null || fbs.getFire() == null) {
-            Log.e(TAG, "Firebase services not properly initialized");
-            showLoading(false);
-            showEmptyView(true);
-            showToast("Error: Firebase not initialized");
-            return;
+            // Fallback to direct Firestore instance if FirebaseServices isn't available
+            Log.d(TAG, "Using direct Firestore instance as fallback");
+            db = FirebaseFirestore.getInstance();
+        } else {
+            db = fbs.getFire();
         }
         
-        CollectionReference booksRef = fbs.getFire().collection("books");
+        // Query books collection - no authentication required for reading public data
+        CollectionReference booksRef = db.collection("books");
         Log.d(TAG, "Querying 'books' collection from Firestore");
         
         booksRef.get().addOnCompleteListener(task -> {
@@ -168,6 +181,8 @@ public class BookListFragment extends Fragment implements BookGridAdapter.OnBook
                             
                             Book book = document.toObject(Book.class);
                             if (book != null) {
+                                // Make sure the book has its ID set for future reference
+                                book.setBookId(document.getId());
                                 Log.d(TAG, "Book converted successfully: " + book.getName());
                                 bookList.add(book);
                             } else {
@@ -184,6 +199,7 @@ public class BookListFragment extends Fragment implements BookGridAdapter.OnBook
                                         String pdfUrl = (String) data.get("pdfUrl");
                                         
                                         Book manualBook = new Book(name, date, desc, lang, photo);
+                                        manualBook.setBookId(document.getId()); // Set the document ID as book ID
                                         if (pdfUrl != null && !pdfUrl.isEmpty()) {
                                             manualBook.setPdfUrl(pdfUrl);
                                         }

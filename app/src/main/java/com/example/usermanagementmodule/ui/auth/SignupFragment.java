@@ -1,4 +1,4 @@
-package com.example.usermanagementmodule;
+package com.example.usermanagementmodule.ui.auth;
 
 import android.os.Bundle;
 import android.util.Log;
@@ -14,7 +14,10 @@ import android.widget.EditText;
 import android.widget.TextView;
 import android.widget.Toast;
 
-import com.example.usermanagementmodule.Main.sampledata.FirebaseServices;
+import com.example.usermanagementmodule.ui.main.HomeFragment;
+import com.example.usermanagementmodule.utils.FirebaseServices;
+import com.example.usermanagementmodule.R;
+import com.example.usermanagementmodule.model.User;
 import com.google.android.gms.tasks.OnCompleteListener;
 import com.google.android.gms.tasks.OnFailureListener;
 import com.google.android.gms.tasks.OnSuccessListener;

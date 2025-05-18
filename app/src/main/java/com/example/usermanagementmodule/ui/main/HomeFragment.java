@@ -1,4 +1,4 @@
-package com.example.usermanagementmodule;
+package com.example.usermanagementmodule.ui.main;
 
 import android.os.Bundle;
 
@@ -14,9 +14,12 @@ import android.widget.ImageView;
 import android.widget.TextView;
 import android.widget.Toast;
 
-import com.example.usermanagementmodule.Main.sampledata.FirebaseServices;
+import com.example.usermanagementmodule.utils.FirebaseServices;
+import com.example.usermanagementmodule.R;
 import com.example.usermanagementmodule.book.AddDataFragment;
 import com.example.usermanagementmodule.book.BookListFragment;
+import com.example.usermanagementmodule.model.User;
+import com.example.usermanagementmodule.ui.auth.LoginFragment;
 import com.squareup.picasso.Picasso;
 
 /**

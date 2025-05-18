@@ -1,4 +1,4 @@
-package com.example.usermanagementmodule;
+package com.example.usermanagementmodule.model;
 
 import com.example.usermanagementmodule.book.Book;
 

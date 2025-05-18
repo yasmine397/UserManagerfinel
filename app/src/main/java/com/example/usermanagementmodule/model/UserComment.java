@@ -1,4 +1,4 @@
-package com.example.usermanagementmodule;
+package com.example.usermanagementmodule.model;
 public class UserComment {
     private String userName;
     private String userPhotoUrl;

@@ -1,4 +1,4 @@
-package com.example.usermanagementmodule;
+package com.example.usermanagementmodule.ui.auth;
 
 import android.os.Bundle;
 import android.view.LayoutInflater;
@@ -12,7 +12,8 @@ import androidx.annotation.NonNull;
 import androidx.fragment.app.Fragment;
 import androidx.fragment.app.FragmentTransaction;
 
-import com.example.usermanagementmodule.Main.sampledata.FirebaseServices;
+import com.example.usermanagementmodule.utils.FirebaseServices;
+import com.example.usermanagementmodule.R;
 import com.google.android.gms.tasks.OnCompleteListener;
 import com.google.android.gms.tasks.Task;
 
@@ -34,6 +35,7 @@ public class ForgotFragment extends Fragment {
                              Bundle savedInstanceState) {
         // Inflate the layout for this fragment
         return inflater.inflate(R.layout.fragment_forgot, container, false);
+
     }
 
     @Override

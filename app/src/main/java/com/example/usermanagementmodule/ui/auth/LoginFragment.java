@@ -1,5 +1,6 @@
-package com.example.usermanagementmodule;
+package com.example.usermanagementmodule.ui.auth;
 
+import android.content.Intent;
 import android.os.Bundle;
 
 import androidx.annotation.NonNull;
@@ -15,7 +16,13 @@ import android.widget.EditText;
 import android.widget.TextView;
 import android.widget.Toast;
 
-import com.example.usermanagementmodule.Main.sampledata.FirebaseServices;
+import com.example.usermanagementmodule.ui.library.LibraryFragment;
+import com.example.usermanagementmodule.utils.FirebaseServices;
+import com.example.usermanagementmodule.R;
+import com.example.usermanagementmodule.ui.profile.UserProfileFragment;
+import com.example.usermanagementmodule.book.BookDetail;
+import com.example.usermanagementmodule.model.User;
+import com.example.usermanagementmodule.ui.main.MainActivity;
 import com.google.android.gms.tasks.OnFailureListener;
 import com.google.android.gms.tasks.OnSuccessListener;
 import com.google.firebase.auth.AuthResult;
@@ -38,6 +45,9 @@ public class LoginFragment extends Fragment {
     // the fragment initialization parameters, e.g. ARG_ITEM_NUMBER
     private static final String ARG_PARAM1 = "param1";
     private static final String ARG_PARAM2 = "param2";
+
+    private String pendingAction;
+    private String pendingBookId;
 
     public LoginFragment() {
         // Required empty public constructor
@@ -65,9 +75,9 @@ public class LoginFragment extends Fragment {
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         if (getArguments() != null) {
-            // TODO: Rename and change types of parameters
-            String mParam1 = getArguments().getString(ARG_PARAM1);
-            getArguments().getString(ARG_PARAM2);
+            // Check for any pending actions
+            pendingAction = getArguments().getString("pendingAction");
+            pendingBookId = getArguments().getString("pendingBookId");
         }
     }
 
@@ -155,8 +165,75 @@ public class LoginFragment extends Fragment {
                             // Set the current user in FirebaseServices
                             FirebaseServices.getInstance().setCurrentUser(user);
                             
-                            // Navigate to home screen
-                            gotoHomeFragment();
+                            // Handle any pending actions
+                            if (pendingAction != null && getActivity() != null) {
+                                FragmentTransaction ft = getActivity().getSupportFragmentManager().beginTransaction();
+                                
+                                switch (pendingAction) {
+                                    case "addToLibrary":
+                                        // Return to the book detail page with the pending book ID
+                                        if (pendingBookId != null) {
+                                            // Try to find the book in Firestore and navigate to book detail
+                                            fbs.getFire().collection("books")
+                                                .whereEqualTo("name", pendingBookId)
+                                                .limit(1)
+                                                .get()
+                                                .addOnSuccessListener(querySnapshot -> {
+                                                    if (!querySnapshot.isEmpty()) {
+                                                        // Got the book
+                                                        DocumentSnapshot bookDoc = querySnapshot.getDocuments().get(0);
+                                                        
+                                                        // Create bundle with book data
+                                                        Bundle args = new Bundle();
+                                                        args.putString("bookId", pendingBookId);
+                                                        args.putString("title", bookDoc.getString("name"));
+                                                        args.putString("description", bookDoc.getString("deseridsion"));
+                                                        args.putString("imageUrl", bookDoc.getString("photo"));
+                                                        args.putString("pdfUrl", bookDoc.getString("pdfUrl"));
+                                                        
+                                                        // Navigate to book detail
+                                                        BookDetail bookDetail = new BookDetail();
+                                                        bookDetail.setArguments(args);
+                                                        
+                                                        ft.replace(R.id.fragment_container, bookDetail);
+                                                        ft.commit();
+                                                        return;
+                                                    } else {
+                                                        // Fallback to library if book not found
+                                                        ft.replace(R.id.fragment_container, new LibraryFragment());
+                                                        ft.commit();
+                                                    }
+                                                })
+                                                .addOnFailureListener(e -> {
+                                                    // Fallback to library on error
+                                                    ft.replace(R.id.fragment_container, new LibraryFragment());
+                                                    ft.commit();
+                                                });
+                                        } else {
+                                            // No book ID, go to library
+                                            ft.replace(R.id.fragment_container, new LibraryFragment());
+                                            ft.commit();
+                                        }
+                                        break;
+                                    case "viewLibrary":
+                                        // Go to library fragment
+                                        ft.replace(R.id.fragment_container, new LibraryFragment());
+                                        ft.commit();
+                                        break;
+                                    case "viewProfile":
+                                        // Go to user profile
+                                        ft.replace(R.id.fragment_container, new UserProfileFragment());
+                                        ft.commit();
+                                        break;
+                                    default:
+                                        // Default to book list
+                                        gotoHomeFragment();
+                                        break;
+                                }
+                            } else {
+                                // No pending action, go to home
+                                gotoHomeFragment();
+                            }
                         } else {
                             Toast.makeText(getActivity(), "User data not found", Toast.LENGTH_SHORT).show();
                         }
@@ -177,15 +254,18 @@ public class LoginFragment extends Fragment {
                 return;
             }
             
-            FragmentTransaction ft = getActivity().getSupportFragmentManager().beginTransaction();
-            ft.replace(R.id.frameLayout2, new HomeFragment());
-            ft.commit();
-            Log.d(TAG, "Successfully navigated to HomeFragment");
-        } catch (Exception e) {
-            Log.e(TAG, "Error navigating to HomeFragment: " + e.getMessage(), e);
-            if (getContext() != null) {
-                Toast.makeText(getContext(), "Error navigating to home screen", Toast.LENGTH_LONG).show();
+            Log.d(TAG, "Navigating to BookListFragment after login");
+            
+            // Start MainActivity which will load BookListFragment by default
+            Intent intent = new Intent(getActivity(), MainActivity.class);
+            startActivity(intent);
+            
+            // Finish the current activity to prevent going back to login
+            if (getActivity() != null) {
+                getActivity().finish();
             }
+        } catch (Exception e) {
+            Log.e(TAG, "Error navigating to BookListFragment: " + e.getMessage(), e);
         }
     }
     

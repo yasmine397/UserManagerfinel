@@ -51,6 +51,24 @@
             android:inputType="textMultiLine"
             android:minLines="2"
             android:layout_marginTop="12dp" />
+            
+        <!-- Sign Out Button -->
+        <Button
+            android:id="@+id/btnSignOut"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Sign Out"
+            android:textColor="#FFFFFF"
+            android:backgroundTint="@color/purple_500"
+            android:layout_marginTop="16dp" />
+            
+        <!-- Divider -->
+        <View
+            android:layout_width="match_parent"
+            android:layout_height="1dp"
+            android:background="#CCCCCC"
+            android:layout_marginTop="16dp"
+            android:layout_marginBottom="16dp" />
 
         <!-- Updates/Comments Section Title -->
         <TextView
@@ -60,7 +78,7 @@
             android:text="Updates"
             android:textStyle="bold"
             android:textSize="18sp"
-            android:layout_marginTop="20dp" />
+            android:layout_marginTop="4dp" />
 
         <!-- RecyclerView for Comments -->
         <androidx.recyclerview.widget.RecyclerView

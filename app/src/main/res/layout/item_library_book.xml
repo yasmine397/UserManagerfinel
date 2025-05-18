@@ -1,9 +1,12 @@
 <?xml version="1.0" encoding="utf-8"?>
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
     android:orientation="vertical"
     android:layout_width="wrap_content"
     android:layout_height="wrap_content"
     android:padding="8dp"
+    android:backgroundTint="@color/white"
     android:gravity="center_horizontal"
     android:background="@android:color/transparent">
 
@@ -14,7 +17,7 @@
         android:scaleType="centerCrop"
         android:background="@drawable/rounded_corners"
         android:contentDescription="Book Cover"
-        android:elevation="2dp"/>
+        android:elevation="2dp" />
 
     <LinearLayout
         android:orientation="horizontal"
@@ -33,20 +36,17 @@
             android:textSize="14sp"
             android:textStyle="bold"
             android:maxLines="1"
-            android:ellipsize="end"/>
+            android:ellipsize="end" />
 
-        <TextView
-            android:id="@+id/book_status"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="want to read"
-            android:textColor="#222"
-            android:textSize="12sp"
-            android:background="@drawable/status_pill"
-            android:paddingLeft="10dp"
-            android:paddingRight="10dp"
-            android:paddingTop="2dp"
-            android:paddingBottom="2dp"
-            android:layout_marginStart="8dp"/>
+        <ImageButton
+            android:id="@+id/button_delete"
+            android:layout_width="32dp"
+            android:layout_height="32dp"
+            android:layout_marginStart="8dp"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:contentDescription="Delete"
+            android:src="@drawable/delet"
+            app:tint="@color/black"
+            tools:ignore="TouchTargetSizeCheck" />
     </LinearLayout>
 </LinearLayout>

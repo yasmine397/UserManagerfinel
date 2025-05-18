@@ -12,22 +12,20 @@ import androidx.recyclerview.widget.RecyclerView;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
-import android.widget.AdapterView;
-import android.widget.ArrayAdapter;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.ImageButton;
 import android.widget.ImageView;
 import android.widget.RatingBar;
-import android.widget.Spinner;
 import android.widget.TextView;
 import android.widget.Toast;
 
-import com.example.usermanagementmodule.Comment;
-import com.example.usermanagementmodule.CommentAdapter;
+import com.example.usermanagementmodule.model.Comment;
+import com.example.usermanagementmodule.ui.comment.CommentAdapter;
+import com.example.usermanagementmodule.ui.library.LibraryFragment;
 import com.example.usermanagementmodule.R;
-import com.example.usermanagementmodule.User;
-import com.google.android.gms.tasks.Task;
+import com.example.usermanagementmodule.model.User;
+import com.example.usermanagementmodule.ui.auth.LoginFragment;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.auth.FirebaseUser;
 import com.google.firebase.firestore.DocumentSnapshot;
@@ -36,7 +34,6 @@ import com.google.firebase.firestore.FirebaseFirestore;
 import com.google.firebase.firestore.QueryDocumentSnapshot;
 import com.google.firebase.firestore.SetOptions;
 import com.squareup.picasso.Picasso;
-import com.example.usermanagementmodule.utils.BookDownloadManager;
 import com.example.usermanagementmodule.pdf.PdfViewerActivity;
 
 import java.util.ArrayList;
@@ -52,7 +49,7 @@ import android.util.Log;
  */
 public class BookDetail extends Fragment {
     private EditText commentEditText;
-    private Button sendButton, readButton;
+    private Button sendButton, readButton, addToLibraryButton;
     private RecyclerView commentsRecyclerView;
     private CommentAdapter commentAdapter;
     private ArrayList<Comment> commentList;
@@ -61,9 +58,8 @@ public class BookDetail extends Fragment {
     private FirebaseFirestore db;
     private FirebaseUser currentUser;
     private String bookId;
-    private Spinner bookStatusSpinner;
     private String pdfUrl; // To store the PDF URL
-    private String currentBookStatus;
+    private boolean isInLibrary = false;
 
     // TODO: Rename parameter arguments, choose names that match
     // the fragment initialization parameters, e.g. ARG_ITEM_NUMBER
@@ -122,7 +118,6 @@ public class BookDetail extends Fragment {
             }
             String description = args.getString("description");
             pdfUrl = args.getString("pdfUrl"); // Get the PDF URL from arguments
-            String initialStatus = args.getString("status"); // Get initial status if available
             
             TextView bookTitleView = view.findViewById(R.id.bookTitle);
             TextView bookDescView = view.findViewById(R.id.bookDescription);
@@ -165,12 +160,6 @@ public class BookDetail extends Fragment {
             if (coverUrl != null && !coverUrl.isEmpty()) {
                 Picasso.get().load(coverUrl).into(bookCover);
             }
-            
-            // Remember the initial status if provided
-            if (initialStatus != null && !initialStatus.isEmpty()) {
-                // We'll use this later to set the spinner selection
-                currentBookStatus = initialStatus;
-            }
         }
 
         // Initialize read button
@@ -183,6 +172,10 @@ public class BookDetail extends Fragment {
             readButton.setText("No PDF Available");
         }
 
+        // Add to Library button
+        addToLibraryButton = view.findViewById(R.id.addToLibraryButton);
+        addToLibraryButton.setOnClickListener(v -> addBookToLibrary());
+
         // Comments
         commentEditText = view.findViewById(R.id.commentInput);
         sendButton = view.findViewById(R.id.buttonSend);
@@ -193,39 +186,23 @@ public class BookDetail extends Fragment {
         commentsRecyclerView.setLayoutManager(new LinearLayoutManager(getContext()));
         commentsRecyclerView.setAdapter(commentAdapter);
 
-        bookStatusSpinner = view.findViewById(R.id.book_status_spinner);
-        ArrayAdapter<CharSequence> spinnerAdapter = ArrayAdapter.createFromResource(
-                getContext(),
-                R.array.book_status_options,
-                android.R.layout.simple_spinner_item
-        );
-        spinnerAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
-        bookStatusSpinner.setAdapter(spinnerAdapter);
-        
-        // Set the initial selection if we have status from arguments
-        if (currentBookStatus != null && !currentBookStatus.isEmpty()) {
-            int position = getStatusPosition(currentBookStatus, spinnerAdapter);
-            if (position >= 0) {
-                bookStatusSpinner.setSelection(position);
-            }
-        }
-
-        bookStatusSpinner.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
-            @Override
-            public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
-                String selectedStatus = parent.getItemAtPosition(position).toString();
-                saveBookStatus(selectedStatus);
-            }
-
-            @Override
-            public void onNothingSelected(AdapterView<?> parent) {
-            }
-        });
         // Ratings
         ratingBarUser = view.findViewById(R.id.ratingBarUser);
         ratingBarAverage = view.findViewById(R.id.ratingBarAverage);
         ratingValueText = view.findViewById(R.id.ratingValueText);
-
+        if (currentUser != null) {
+            db.collection("ratings")
+                    .document(bookId + "_" + currentUser.getUid())
+                    .get()
+                    .addOnSuccessListener(documentSnapshot -> {
+                        if (documentSnapshot.exists()) {
+                            Long userRating = documentSnapshot.getLong("rating");
+                            if (userRating != null) {
+                                ratingBarUser.setRating(userRating);
+                            }
+                        }
+                    });
+        }
         db = FirebaseFirestore.getInstance();
         currentUser = FirebaseAuth.getInstance().getCurrentUser();
 
@@ -234,6 +211,9 @@ public class BookDetail extends Fragment {
         
         // Load comments
         loadComments();
+
+        // Check if book is already in library
+        checkIfInLibrary();
 
         // Send comment
         sendButton.setOnClickListener(v -> {
@@ -272,7 +252,12 @@ public class BookDetail extends Fragment {
                 Toast.makeText(getContext(), "Please log in first", Toast.LENGTH_SHORT).show();
             }
         });
-
+        ImageButton buttonBack = view.findViewById(R.id.buttonBack);
+        buttonBack.setOnClickListener(v -> {
+            if (getActivity() != null) {
+                getActivity().onBackPressed();
+            }
+        });
         // User rating
         ratingBarUser.setOnRatingBarChangeListener((ratingBar, rating, fromUser) -> {
             if (fromUser && currentUser != null) {
@@ -290,75 +275,192 @@ public class BookDetail extends Fragment {
                         });
             }
         });
-        loadBookStatus();
 
         return view;
     }
 
-    private void saveBookStatus(String status) {
-        Log.d("BookDetail", "Saving status: " + status + " for bookId: " + bookId);
+    private void checkIfInLibrary() {
+        if (currentUser == null || bookId == null) return;
         
-        FirebaseFirestore db = FirebaseFirestore.getInstance();
-        FirebaseUser currentUser = FirebaseAuth.getInstance().getCurrentUser();
-        if (currentUser != null && bookId != null) {
-            // Sanitize the bookId by replacing spaces and special characters
-            String sanitizedBookId = bookId.replace(" ", "_").replace("/", "_");
-            
-            // Create a document ID that's consistent and unique per user
-            String documentId = currentUser.getUid() + "_" + sanitizedBookId;
-            Log.d("BookDetail", "Using document ID: " + documentId + " for status update");
-            
-            Map<String, Object> statusData = new HashMap<>();
-            statusData.put("userId", currentUser.getUid());
-            statusData.put("bookId", sanitizedBookId);
-            statusData.put("status", status);
-            statusData.put("updatedAt", FieldValue.serverTimestamp());
-
-            // Save the status to Firestore
-            db.collection("user_book_status")
-                    .document(documentId)
-                    .set(statusData, SetOptions.merge())
-                    .addOnSuccessListener(aVoid -> {
-                        Log.d("BookDetail", "Status updated successfully");
-                        // If status is "want to read" or "read", add book to library
-                        if (status.equals("want to read") || status.equals("read")) {
-                            addBookToLibrary(status, sanitizedBookId);
-                            if (getContext() != null) {
-                                Toast.makeText(getContext(), "Book added to your library", Toast.LENGTH_SHORT).show();
+        String sanitizedBookId = bookId.replace(" ", "_").replace("/", "_");
+        
+        db.collection("users")
+                .document(currentUser.getUid())
+                .get()
+                .addOnSuccessListener(documentSnapshot -> {
+                    if (documentSnapshot.exists()) {
+                        ArrayList<Map<String, Object>> books = (ArrayList<Map<String, Object>>) documentSnapshot.get("books");
+                        if (books != null) {
+                            for (Map<String, Object> book : books) {
+                                String storedBookId = (String) book.get("bookId");
+                                String storedTitle = (String) book.get("title");
+                                
+                                // Check if book matches by bookId
+                                if (sanitizedBookId.equals(storedBookId)) {
+                                    isInLibrary = true;
+                                    updateAddToLibraryButton();
+                                    break;
+                                }
+                                
+                                // Also check by title if available (case insensitive)
+                                if (storedTitle != null && !storedTitle.isEmpty() && 
+                                    bookId.equalsIgnoreCase(storedTitle)) {
+                                    isInLibrary = true;
+                                    updateAddToLibraryButton();
+                                    break;
+                                }
+                                
+                                // Check alternative sanitization
+                                String altSanitizedBookId = bookId.replace("_", " ").replace(" ", "_").replace("/", "_");
+                                if (altSanitizedBookId.equals(storedBookId)) {
+                                    isInLibrary = true;
+                                    updateAddToLibraryButton();
+                                    break;
+                                }
                             }
                         }
-                    })
-                    .addOnFailureListener(e -> {
-                        Log.e("BookDetail", "Failed to update status: " + e.getMessage(), e);
-                        if (getContext() != null) {
-                            Toast.makeText(getContext(), "Failed to update book status: " + e.getMessage(), Toast.LENGTH_SHORT).show();
-                        }
-                    });
-        } else {
-            Log.e("BookDetail", "Cannot save status - currentUser: " + (currentUser != null) + ", bookId: " + bookId);
-            if (getContext() != null) {
-                Toast.makeText(getContext(), "Error: Cannot save status - User or Book ID missing", Toast.LENGTH_SHORT).show();
+                    }
+                    // We don't need to create a user document here - that will happen when adding a book
+                })
+                .addOnFailureListener(e -> {
+                    Log.e("BookDetail", "Error checking if book is in library: " + e.getMessage());
+                });
+    }
+    
+    private void updateAddToLibraryButton() {
+        if (addToLibraryButton != null) {
+            if (isInLibrary) {
+                addToLibraryButton.setText("In Library");
+                addToLibraryButton.setEnabled(false);
+            } else {
+                addToLibraryButton.setText("Add to Library");
+                addToLibraryButton.setEnabled(true);
             }
         }
     }
 
     /**
-     * Add the current book to the user's library with the selected status
-     * @param status The reading status (want to read/read)
-     * @param sanitizedBookId The sanitized book ID to use for consistent document IDs
+     * Add the current book to the user's library
      */
-    private void addBookToLibrary(String status, String sanitizedBookId) {
-        if (currentUser == null) {
-            Log.e("BookDetail", "Cannot add to library - currentUser is null");
-            return;
-        }
+    private void addBookToLibrary() {
+        try {
+            if (currentUser == null) {
+                Log.d("BookDetail", "User not logged in, redirecting to login");
+                // Save book details to temporary storage (could use SharedPreferences in a real implementation)
+                Toast.makeText(getContext(), "Please log in to add books to your library", Toast.LENGTH_SHORT).show();
+                
+                // Navigate to login fragment
+                if (getActivity() != null) {
+                    // Get the book details to pass to login
+                    Bundle bookData = new Bundle();
+                    bookData.putString("pendingBookId", bookId);
+                    bookData.putString("pendingAction", "addToLibrary");
+                    
+                    // Navigate to the login fragment with book data
+                    getActivity().getSupportFragmentManager()
+                            .beginTransaction()
+                            .replace(R.id.fragment_container, new LoginFragment())
+                            .addToBackStack(null)
+                            .commit();
+                }
+                return;
+            }
 
+            // Rest of your existing implementation for logged in users
+            // Sanitize the bookId
+            String sanitizedBookId = bookId.replace(" ", "_").replace("/", "_");
+            // Also have the original bookId for lookup
+            String originalBookId = bookId;
+            
+            // First, get the complete book details from Firestore's books collection
+            db.collection("books")
+                    .whereEqualTo("name", originalBookId)
+                    .limit(1)
+                    .get()
+                    .addOnSuccessListener(queryDocumentSnapshots -> {
+                        if (!queryDocumentSnapshots.isEmpty()) {
+                            // Found the book by name
+                            DocumentSnapshot bookDoc = queryDocumentSnapshots.getDocuments().get(0);
+                            addBookWithDataFromFirestore(bookDoc, sanitizedBookId);
+                        } else {
+                            // Try looking up by document ID
+                            db.collection("books")
+                                    .document(originalBookId)
+                                    .get()
+                                    .addOnSuccessListener(documentSnapshot -> {
+                                        if (documentSnapshot.exists()) {
+                                            addBookWithDataFromFirestore(documentSnapshot, sanitizedBookId);
+                                        } else {
+                                            // Book not found in collection, use UI values as fallback
+                                            addBookWithUIValues(sanitizedBookId);
+                                        }
+                                    })
+                                    .addOnFailureListener(e -> {
+                                        Log.e("BookDetail", "Failed to fetch book by ID: " + e.getMessage());
+                                        // Fall back to UI values
+                                        addBookWithUIValues(sanitizedBookId);
+                                    });
+                        }
+                    })
+                    .addOnFailureListener(e -> {
+                        Log.e("BookDetail", "Failed to fetch book by name: " + e.getMessage());
+                        // Fall back to UI values
+                        addBookWithUIValues(sanitizedBookId);
+                    });
+        } catch (Exception e) {
+            Log.e("BookDetail", "Error in addBookToLibrary: " + e.getMessage(), e);
+            if (getContext() != null) {
+                Toast.makeText(getContext(), "Error: " + e.getMessage(), Toast.LENGTH_SHORT).show();
+            }
+        }
+    }
+
+    /**
+     * Add book using data from Firestore books collection
+     */
+    private void addBookWithDataFromFirestore(DocumentSnapshot bookDoc, String sanitizedBookId) {
+        try {
+            // Create book entry with data from Firestore
+            final Map<String, Object> bookEntry = new HashMap<>();
+            bookEntry.put("bookId", sanitizedBookId);
+            
+            // Get book details from Firestore document
+            String title = bookDoc.getString("name");
+            String description = bookDoc.getString("deseridsion");
+            String coverUrl = bookDoc.getString("photo");
+            String pdfUrl = bookDoc.getString("pdfUrl");
+            String realestDate = bookDoc.getString("realestDate");
+            
+            if (title != null) bookEntry.put("title", title);
+            if (description != null) bookEntry.put("description", description);
+            if (coverUrl != null) bookEntry.put("coverUrl", coverUrl);
+            if (pdfUrl != null) bookEntry.put("pdfUrl", pdfUrl);
+            if (realestDate != null) bookEntry.put("realestDate", realestDate);
+            
+            bookEntry.put("addedDate", new java.util.Date());
+            bookEntry.put("addedByApp", true);
+            
+            Log.d("BookDetail", "Adding book with Firestore data: " + bookEntry);
+            
+            // Check if user document exists and update it
+            updateUserWithBookEntry(bookEntry);
+        } catch (Exception e) {
+            Log.e("BookDetail", "Error in addBookWithDataFromFirestore: " + e.getMessage(), e);
+            // Fall back to UI values
+            addBookWithUIValues(sanitizedBookId);
+        }
+    }
+
+    /**
+     * Add book using data from UI (fallback method)
+     */
+    private void addBookWithUIValues(String sanitizedBookId) {
         View view = getView();
         if (view == null) {
             Log.e("BookDetail", "Cannot add to library - view is null");
             return;
         }
-
+        
         // Get the book details from the UI
         String title = "";
         String description = "";
@@ -388,185 +490,167 @@ public class BookDetail extends Fragment {
             }
         }
         
-        // Create a library entry
-        Map<String, Object> libraryEntry = new HashMap<>();
-        libraryEntry.put("userId", currentUser.getUid());
-        libraryEntry.put("bookId", sanitizedBookId);
-        libraryEntry.put("title", title);
-        libraryEntry.put("description", description);
-        libraryEntry.put("coverUrl", coverUrl);
-        libraryEntry.put("pdfUrl", pdfUrl);
-        libraryEntry.put("status", status);
-        libraryEntry.put("addedDate", FieldValue.serverTimestamp());
-        libraryEntry.put("updatedDate", FieldValue.serverTimestamp());
+        // Create a library book entry
+        final Map<String, Object> bookEntry = new HashMap<>();
+        bookEntry.put("bookId", sanitizedBookId);
+        bookEntry.put("title", title);
+        bookEntry.put("description", description);
+        bookEntry.put("coverUrl", coverUrl);
+        bookEntry.put("pdfUrl", pdfUrl);
+        bookEntry.put("addedDate", new java.util.Date());
+        bookEntry.put("addedByApp", true);
+        
+        Log.d("BookDetail", "Adding book with UI data (fallback): " + bookEntry);
+        
+        // Update user document with this book entry
+        updateUserWithBookEntry(bookEntry);
+    }
 
-        // Create a document ID that combines user ID and sanitized book ID (consistent with status)
-        String documentId = currentUser.getUid() + "_" + sanitizedBookId;
-        Log.d("BookDetail", "Adding to library with document ID: " + documentId);
-
-        // Add to the user's library collection
-        db.collection("user_library")
-                .document(documentId)
-                .set(libraryEntry, SetOptions.merge())
-                .addOnSuccessListener(aVoid -> {
-                    // Update was successful
-                    Log.d("BookDetail", "Book added to library successfully with ID: " + documentId);
+    /**
+     * Update user document with book entry
+     */
+    private void updateUserWithBookEntry(final Map<String, Object> bookEntry) {
+        db.collection("users")
+                .document(currentUser.getUid())
+                .get()
+                .addOnSuccessListener(documentSnapshot -> {
+                    if (documentSnapshot.exists()) {
+                        List<Map<String, Object>> books = (List<Map<String, Object>>) documentSnapshot.get("books");
+                        
+                        if (books == null) {
+                            // If books field doesn't exist, create it with this book
+                            List<Map<String, Object>> newBooks = new ArrayList<>();
+                            newBooks.add(bookEntry);
+                            
+                            db.collection("users")
+                                    .document(currentUser.getUid())
+                                    .update("books", newBooks)
+                                    .addOnSuccessListener(aVoid -> {
+                                        Log.d("BookDetail", "Book added to library successfully (created array)");
+                                        Toast.makeText(getContext(), "Book added to your library", Toast.LENGTH_SHORT).show();
+                                        isInLibrary = true;
+                                        updateAddToLibraryButton();
+                                        
+                                        // Navigate to library
+                                        if (getActivity() != null) {
+                                            getActivity().getSupportFragmentManager()
+                                                    .beginTransaction()
+                                                    .replace(R.id.fragment_container, new LibraryFragment())
+                                                    .addToBackStack(null)
+                                                    .commit();
+                                        }
+                                    })
+                                    .addOnFailureListener(e -> {
+                                        Log.e("BookDetail", "Failed to add to library: " + e.getMessage(), e);
+                                        if (getContext() != null) {
+                                            // Show more detailed error with specific code
+                                            String errorMsg = "Failed to add to library. ";
+                                            if (e.getMessage() != null) {
+                                                if (e.getMessage().contains("PERMISSION_DENIED")) {
+                                                    errorMsg += "You don't have permission to update this user.";
+                                                } else if (e.getMessage().contains("NOT_FOUND")) {
+                                                    errorMsg += "User document not found.";
+                                                } else {
+                                                    errorMsg += e.getMessage();
+                                                }
+                                            }
+                                            Toast.makeText(getContext(), errorMsg, Toast.LENGTH_LONG).show();
+                                        }
+                                    });
+                        } else {
+                            // If books field exists, update it with arrayUnion
+                            db.collection("users")
+                                    .document(currentUser.getUid())
+                                    .update("books", FieldValue.arrayUnion(bookEntry))
+                                    .addOnSuccessListener(aVoid -> {
+                                        Log.d("BookDetail", "Book added to library successfully");
+                                        Toast.makeText(getContext(), "Book added to your library", Toast.LENGTH_SHORT).show();
+                                        isInLibrary = true;
+                                        updateAddToLibraryButton();
+                                        
+                                        // Navigate to library
+                                        if (getActivity() != null) {
+                                            getActivity().getSupportFragmentManager()
+                                                    .beginTransaction()
+                                                    .replace(R.id.fragment_container, new LibraryFragment())
+                                                    .addToBackStack(null)
+                                                    .commit();
+                                        }
+                                    })
+                                    .addOnFailureListener(e -> {
+                                        Log.e("BookDetail", "Failed to add to library: " + e.getMessage(), e);
+                                        if (getContext() != null) {
+                                            // Show more detailed error with specific code
+                                            String errorMsg = "Failed to add to library. ";
+                                            if (e.getMessage() != null) {
+                                                if (e.getMessage().contains("PERMISSION_DENIED")) {
+                                                    errorMsg += "You don't have permission to update this user.";
+                                                } else if (e.getMessage().contains("NOT_FOUND")) {
+                                                    errorMsg += "User document not found.";
+                                                } else {
+                                                    errorMsg += e.getMessage();
+                                                }
+                                            }
+                                            Toast.makeText(getContext(), errorMsg, Toast.LENGTH_LONG).show();
+                                        }
+                                    });
+                        }
+                    } else {
+                        // Document doesn't exist - create it
+                        Log.d("BookDetail", "User document not found, creating a new one");
+                        
+                        // First create the books array with this book
+                        List<Map<String, Object>> newBooks = new ArrayList<>();
+                        newBooks.add(bookEntry);
+                        
+                        // Create basic user document
+                        Map<String, Object> userData = new HashMap<>();
+                        userData.put("books", newBooks);
+                        userData.put("userId", currentUser.getUid());
+                        userData.put("email", currentUser.getEmail());
+                        if (currentUser.getDisplayName() != null) {
+                            userData.put("name", currentUser.getDisplayName());
+                        }
+                        
+                        // Create the user document
+                        db.collection("users")
+                                .document(currentUser.getUid())
+                                .set(userData)
+                                .addOnSuccessListener(aVoid -> {
+                                    Log.d("BookDetail", "Created new user document with book");
+                                    Toast.makeText(getContext(), "Book added to your library", Toast.LENGTH_SHORT).show();
+                                    isInLibrary = true;
+                                    updateAddToLibraryButton();
+                                    
+                                    // Navigate to library
+                                    if (getActivity() != null) {
+                                        getActivity().getSupportFragmentManager()
+                                                .beginTransaction()
+                                                .replace(R.id.fragment_container, new LibraryFragment())
+                                                .addToBackStack(null)
+                                                .commit();
+                                    }
+                                })
+                                .addOnFailureListener(e -> {
+                                    Log.e("BookDetail", "Failed to create user document: " + e.getMessage(), e);
+                                    if (getContext() != null) {
+                                        // Show more detailed error with specific code
+                                        String errorMsg = "Failed to create user profile. ";
+                                        if (e.getMessage() != null) {
+                                            if (e.getMessage().contains("PERMISSION_DENIED")) {
+                                                errorMsg += "You don't have permission to create a user profile.";
+                                            } else {
+                                                errorMsg += e.getMessage();
+                                            }
+                                        }
+                                        Toast.makeText(getContext(), errorMsg, Toast.LENGTH_LONG).show();
+                                    }
+                                });
+                    }
                 })
                 .addOnFailureListener(e -> {
-                    Log.e("BookDetail", "Failed to add to library: " + e.getMessage(), e);
-                    if (getContext() != null) {
-                        Toast.makeText(getContext(), "Failed to add to library: " + e.getMessage(), 
-                                Toast.LENGTH_SHORT).show();
-                    }
-                });
-    }
-
-    private void loadBookStatus() {
-        if (bookId == null) {
-            Log.e("BookDetail", "Cannot load status - bookId is null");
-            return;
-        }
-        
-        Log.d("BookDetail", "Loading status for bookId: " + bookId);
-        
-        // Sanitize the bookId in the same way as in saveBookStatus
-        String sanitizedBookId = bookId.replace(" ", "_").replace("/", "_");
-        
-        FirebaseFirestore db = FirebaseFirestore.getInstance();
-        FirebaseUser currentUser = FirebaseAuth.getInstance().getCurrentUser();
-        if (currentUser != null) {
-            // Use the same document ID format as saveBookStatus
-            String documentId = currentUser.getUid() + "_" + sanitizedBookId;
-            Log.d("BookDetail", "Looking up document ID: " + documentId);
-            
-            db.collection("user_book_status")
-                    .document(documentId)
-                    .get()
-                    .addOnSuccessListener(documentSnapshot -> {
-                        if (documentSnapshot.exists()) {
-                            String status = documentSnapshot.getString("status");
-                            Log.d("BookDetail", "Found status: " + status);
-                            if (status != null) {
-                                ArrayAdapter<CharSequence> adapter = (ArrayAdapter<CharSequence>) bookStatusSpinner.getAdapter();
-                                int position = getStatusPosition(status, adapter);
-                                if (position >= 0) {
-                                    bookStatusSpinner.setSelection(position);
-                                }
-                            }
-                        } else {
-                            Log.d("BookDetail", "No status document found");
-                            // Try to find in user_library as an alternative
-                            checkLibraryStatus(sanitizedBookId);
-                        }
-                    })
-                    .addOnFailureListener(e -> {
-                        Log.e("BookDetail", "Error loading status: " + e.getMessage(), e);
-                    });
-        }
-    }
-
-    /**
-     * Check if the book is in the user's library and get its status
-     */
-    private void checkLibraryStatus(String sanitizedBookId) {
-        if (currentUser == null) return;
-        
-        Log.d("BookDetail", "Checking library status for sanitized bookId: " + sanitizedBookId);
-        
-        // Look for the document directly with our consistent ID format
-        String documentId = currentUser.getUid() + "_" + sanitizedBookId;
-        
-        db.collection("user_library")
-                .document(documentId)
-                .get()
-                .addOnSuccessListener(documentSnapshot -> {
-                    if (documentSnapshot.exists()) {
-                        String status = documentSnapshot.getString("status");
-                        if (status != null) {
-                            Log.d("BookDetail", "Found status in library: " + status);
-                            // Set spinner selection
-                            ArrayAdapter<CharSequence> adapter = (ArrayAdapter<CharSequence>) bookStatusSpinner.getAdapter();
-                            int position = getStatusPosition(status, adapter);
-                            if (position >= 0) {
-                                bookStatusSpinner.setSelection(position);
-                            }
-                        }
-                    } else {
-                        // Fallback to query approach
-                        db.collection("user_library")
-                                .whereEqualTo("userId", currentUser.getUid())
-                                .whereEqualTo("bookId", sanitizedBookId)
-                                .get()
-                                .addOnSuccessListener(queryDocumentSnapshots -> {
-                                    if (!queryDocumentSnapshots.isEmpty()) {
-                                        DocumentSnapshot firstDoc = queryDocumentSnapshots.getDocuments().get(0);
-                                        String status = firstDoc.getString("status");
-                                        if (status != null) {
-                                            Log.d("BookDetail", "Found status in library query: " + status);
-                                            // Set spinner selection
-                                            ArrayAdapter<CharSequence> adapter = (ArrayAdapter<CharSequence>) bookStatusSpinner.getAdapter();
-                                            int position = getStatusPosition(status, adapter);
-                                            if (position >= 0) {
-                                                bookStatusSpinner.setSelection(position);
-                                            }
-                                        }
-                                    } else {
-                                        // One last attempt - try with the original non-sanitized bookId
-                                        Log.d("BookDetail", "Trying fallback with original bookId: " + bookId);
-                                        checkWithOriginalBookId();
-                                    }
-                                });
-                    }
-                });
-    }
-
-    /**
-     * Last attempt to find status using original unsanitized bookId
-     */
-    private void checkWithOriginalBookId() {
-        if (currentUser == null || bookId == null) return;
-        
-        String documentId = currentUser.getUid() + "_" + bookId;
-        Log.d("BookDetail", "Checking with original bookId document ID: " + documentId);
-        
-        // Try direct document access first
-        db.collection("user_library")
-                .document(documentId)
-                .get()
-                .addOnSuccessListener(documentSnapshot -> {
-                    if (documentSnapshot.exists()) {
-                        String status = documentSnapshot.getString("status");
-                        if (status != null) {
-                            Log.d("BookDetail", "Found status with original document ID: " + status);
-                            ArrayAdapter<CharSequence> adapter = (ArrayAdapter<CharSequence>) bookStatusSpinner.getAdapter();
-                            int position = getStatusPosition(status, adapter);
-                            if (position >= 0) {
-                                bookStatusSpinner.setSelection(position);
-                            }
-                        }
-                    } else {
-                        // Fall back to query
-                        db.collection("user_library")
-                                .whereEqualTo("userId", currentUser.getUid())
-                                .whereEqualTo("bookId", bookId)
-                                .get()
-                                .addOnSuccessListener(queryDocumentSnapshots -> {
-                                    if (!queryDocumentSnapshots.isEmpty()) {
-                                        DocumentSnapshot firstDoc = queryDocumentSnapshots.getDocuments().get(0);
-                                        String status = firstDoc.getString("status");
-                                        if (status != null) {
-                                            Log.d("BookDetail", "Found status with original bookId query: " + status);
-                                            ArrayAdapter<CharSequence> adapter = (ArrayAdapter<CharSequence>) bookStatusSpinner.getAdapter();
-                                            int position = getStatusPosition(status, adapter);
-                                            if (position >= 0) {
-                                                bookStatusSpinner.setSelection(position);
-                                            }
-                                        }
-                                    } else {
-                                        Log.d("BookDetail", "No status found in any collection");
-                                    }
-                                });
-                    }
+                    Log.e("BookDetail", "Error checking user document: " + e.getMessage(), e);
+                    Toast.makeText(getContext(), "Error checking user data: " + e.getMessage(), Toast.LENGTH_SHORT).show();
                 });
     }
 
@@ -614,7 +698,6 @@ public class BookDetail extends Fragment {
                         ratingValueText.setText("0.0");
                     }
                 });
-
     }
 
     /**
@@ -627,21 +710,25 @@ public class BookDetail extends Fragment {
         }
         
         try {
+            // Get book title
+            String bookTitle = "";
+            TextView titleView = getView().findViewById(R.id.bookTitle);
+            if (titleView != null) {
+                bookTitle = titleView.getText().toString();
+            }
+            
+            // Create and start the PDF viewer activity with proper parameters
+            // No login check needed - PDF viewing is allowed for all users
             Intent intent = new Intent(getActivity(), PdfViewerActivity.class);
             intent.putExtra("pdf_url", pdfUrl);
+            intent.putExtra("BOOK_TITLE", bookTitle);
             startActivity(intent);
+            
+            Log.d("BookDetail", "Opening PDF viewer with URL: " + pdfUrl);
         } catch (Exception e) {
+            Log.e("BookDetail", "Error opening PDF: " + e.getMessage(), e);
             Toast.makeText(getContext(), "Error opening PDF: " + e.getMessage(), Toast.LENGTH_SHORT).show();
         }
-    }
-
-    private int getStatusPosition(String status, ArrayAdapter<CharSequence> adapter) {
-        for (int i = 0; i < adapter.getCount(); i++) {
-            if (adapter.getItem(i).toString().equals(status)) {
-                return i;
-            }
-        }
-        return -1;
     }
 
     /**

@@ -1,4 +1,4 @@
-package com.example.usermanagementmodule;
+package com.example.usermanagementmodule.ui.comment;
 
 import android.view.LayoutInflater;
 import android.view.View;
@@ -9,6 +9,8 @@ import android.widget.TextView;
 import androidx.annotation.NonNull;
 import androidx.recyclerview.widget.RecyclerView;
 import com.bumptech.glide.Glide; // or use Picasso if you prefer
+import com.example.usermanagementmodule.R;
+import com.example.usermanagementmodule.model.UserComment;
 
 import java.util.List;
 

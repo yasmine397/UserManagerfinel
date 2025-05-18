@@ -1,4 +1,4 @@
-package com.example.usermanagementmodule;
+package com.example.usermanagementmodule.ui.main;
 
 import android.annotation.SuppressLint;
 import android.content.Intent;
@@ -9,13 +9,13 @@ import android.widget.TextView;
 
 import androidx.activity.EdgeToEdge;
 import androidx.appcompat.app.AppCompatActivity;
-import androidx.core.graphics.Insets;
-import androidx.core.view.ViewCompat;
-import androidx.core.view.WindowInsetsCompat;
 import androidx.fragment.app.FragmentTransaction;
 
-import com.example.usermanagementmodule.Main.sampledata.FirebaseServices;
-import com.example.usermanagementmodule.Main.sampledata.MainActivity;
+import com.example.usermanagementmodule.ui.auth.ForgotFragment;
+import com.example.usermanagementmodule.utils.FirebaseServices;
+import com.example.usermanagementmodule.R;
+import com.example.usermanagementmodule.ui.auth.LoginFragment;
+import com.example.usermanagementmodule.ui.auth.SignupFragment;
 
 
 public class WelcomeActivity extends AppCompatActivity {
@@ -29,7 +29,7 @@ public class WelcomeActivity extends AppCompatActivity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         EdgeToEdge.enable(this);
-        setContentView(R.layout.activity_main);
+        setContentView(R.layout.activity_welcome);
 
         // Initialize Firebase Services
         fbs = FirebaseServices.getInstance();
@@ -44,8 +44,8 @@ public class WelcomeActivity extends AppCompatActivity {
 
         // Check if user is already logged in
         if (fbs.isLoggedIn()) {
-            // User is already signed in, go to HomeFragment
-            Log.d(TAG, "onStart: User already logged in, navigating to HomeFragment");
+            // User is already signed in, go directly to MainActivity which will load BookListFragment
+            Log.d(TAG, "onStart: User already logged in, navigating to MainActivity with BookListFragment");
             Intent intent = new Intent(WelcomeActivity.this, MainActivity.class);
             startActivity(intent);
             finish();
@@ -79,22 +79,6 @@ public class WelcomeActivity extends AppCompatActivity {
         FragmentTransaction ft = getSupportFragmentManager().beginTransaction();
         ft.replace(R.id.frameLayout2, new SignupFragment());
         ft.commit();
-    }
-
-    // Keep this method for backward compatibility, but redirect to HomeFragment
-    private void gotoAddBookFragment() {
-        gotoHomeFragment();
-    }
-
-    private void gotoHomeFragment() {
-        try {
-            Log.d(TAG, "gotoHomeFragment: Navigating to HomeFragment");
-            FragmentTransaction ft = getSupportFragmentManager().beginTransaction();
-            ft.replace(R.id.frameLayout2, new HomeFragment());
-            ft.commit();
-        } catch (Exception e) {
-            Log.e(TAG, "gotoHomeFragment: Error navigating to HomeFragment", e);
-        }
     }
 
 }

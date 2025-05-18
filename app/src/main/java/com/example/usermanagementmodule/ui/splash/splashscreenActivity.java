@@ -1,4 +1,4 @@
-package com.example.usermanagementmodule;
+package com.example.usermanagementmodule.ui.splash;
 
 import android.content.Intent;
 import android.os.Bundle;
@@ -7,7 +7,8 @@ import android.os.Handler;
 import androidx.activity.EdgeToEdge;
 import androidx.appcompat.app.AppCompatActivity;
 
-import com.example.usermanagementmodule.Main.sampledata.MainActivity;
+import com.example.usermanagementmodule.R;
+import com.example.usermanagementmodule.ui.main.WelcomeActivity;
 
 public class splashscreenActivity extends AppCompatActivity {
 
