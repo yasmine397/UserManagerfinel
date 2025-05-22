@@ -1,5 +1,6 @@
 package com.example.usermanagementmodule.ui.auth;
 
+import android.content.Intent;
 import android.os.Bundle;
 import android.util.Log;
 import androidx.annotation.NonNull;
@@ -15,6 +16,7 @@ import android.widget.TextView;
 import android.widget.Toast;
 
 import com.example.usermanagementmodule.ui.main.HomeFragment;
+import com.example.usermanagementmodule.ui.main.MainActivity;
 import com.example.usermanagementmodule.utils.FirebaseServices;
 import com.example.usermanagementmodule.R;
 import com.example.usermanagementmodule.model.User;
@@ -186,45 +188,24 @@ public class SignupFragment extends Fragment {
                 Log.e(TAG, "getActivity() returned null. Fragment may be detached.");
                 return;
             }
-            
-            if (!isAdded()) {
-                Log.e(TAG, "Fragment is not currently added to its activity.");
-                return;
+
+            Log.d(TAG, "Navigating to MainActivity after signup");
+
+            // Start MainActivity which will load BookListFragment by default
+            Intent intent = new Intent(getActivity(), MainActivity.class);
+            startActivity(intent);
+
+            // Finish the current activity to prevent going back to signup/login
+            if (getActivity() != null) {
+                getActivity().finish();
             }
-            
-            Log.d(TAG, "Starting navigation to HomeFragment");
-            
-            // Ensure we're on the UI thread
-            getActivity().runOnUiThread(new Runnable() {
-                @Override
-                public void run() {
-                    try {
-                        // Create the fragment first to catch any initialization errors
-                        HomeFragment homeFragment = new HomeFragment();
-                        
-                        FragmentTransaction ft = getActivity().getSupportFragmentManager().beginTransaction();
-                        ft.replace(R.id.frameLayout2, homeFragment);
-                        
-                        // Add to back stack so user can navigate back
-                        ft.addToBackStack(null);
-                        
-                        // Commit with allowing state loss to prevent IllegalStateException
-                        ft.commitAllowingStateLoss();
-                        
-                        Log.d(TAG, "Successfully navigated to HomeFragment");
-                    } catch (Exception e) {
-                        Log.e(TAG, "Error creating or showing HomeFragment: " + e.getMessage(), e);
-                        Toast.makeText(getActivity(), "Error navigating to home screen", Toast.LENGTH_LONG).show();
-                    }
-                }
-            });
         } catch (Exception e) {
-            Log.e(TAG, "Exception in gotoHomeFragment: " + e.getMessage(), e);
+            Log.e(TAG, "Error navigating to homefragment: " + e.getMessage(), e);
             // Try to show a toast if we can
             if (getContext() != null) {
                 Toast.makeText(getContext(), "An error occurred. Please try again.", Toast.LENGTH_LONG).show();
             }
-        }
+    }
     }
 
     private void gotoLoginFragment() {
