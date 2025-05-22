@@ -148,6 +148,7 @@ public class SignupFragment extends Fragment {
                                 user.setDateOfBirth(dateBirth);
                                 user.setBooks(new ArrayList<>());
                                 user.setImageUrl("");
+                                user.setBio("");
                                 
                                 // Add user to Firestore
                                 fbs.getFire().collection("users").document(userId)

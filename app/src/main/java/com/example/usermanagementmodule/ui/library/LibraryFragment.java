@@ -100,8 +100,7 @@ public class LibraryFragment extends Fragment {
         adapter = new LibraryBookAdapter(bookList);
         recyclerView.setAdapter(adapter);
 
-        loadLibraryBooks();
-
+        listenForLibraryBooks();
         return view;
     }
 
@@ -314,7 +313,94 @@ public class LibraryFragment extends Fragment {
             recyclerView.setVisibility(View.GONE);
         }
     }
-    
+    private void listenForLibraryBooks() {
+        FirebaseFirestore db = FirebaseFirestore.getInstance();
+        FirebaseUser currentUser = FirebaseAuth.getInstance().getCurrentUser();
+        if (currentUser == null) {
+            showEmptyLibrary();
+            Log.d(TAG, "No current user, showing empty library");
+            return;
+        }
+
+        db.collection("users")
+                .document(currentUser.getUid())
+                .addSnapshotListener((documentSnapshot, e) -> {
+                    bookList.clear();
+
+                    if (e != null || documentSnapshot == null || !documentSnapshot.exists()) {
+                        showEmptyLibrary();
+                        return;
+                    }
+
+                    Object booksObject = documentSnapshot.get("books");
+                    if (booksObject == null || !(booksObject instanceof List)) {
+                        showEmptyLibrary();
+                        return;
+                    }
+
+                    List<Object> booksList = (List<Object>) booksObject;
+                    if (booksList.isEmpty()) {
+                        showEmptyLibrary();
+                        return;
+                    }
+
+                    for (Object bookObj : booksList) {
+                        try {
+                            if (!(bookObj instanceof Map)) continue;
+                            Map<String, Object> bookData = (Map<String, Object>) bookObj;
+                            Book book = new Book();
+
+                            if (bookData.containsKey("title")) {
+                                book.setName((String) bookData.get("title"));
+                            } else if (bookData.containsKey("name")) {
+                                book.setName((String) bookData.get("name"));
+                            }
+
+                            if (bookData.containsKey("description")) {
+                                book.setDeseridsion((String) bookData.get("description"));
+                            } else if (bookData.containsKey("deseridsion")) {
+                                book.setDeseridsion((String) bookData.get("deseridsion"));
+                            }
+
+                            if (bookData.containsKey("coverUrl")) {
+                                book.setPhoto((String) bookData.get("coverUrl"));
+                            } else if (bookData.containsKey("photo")) {
+                                book.setPhoto((String) bookData.get("photo"));
+                            }
+
+                            if (bookData.containsKey("pdfUrl")) {
+                                book.setPdfUrl((String) bookData.get("pdfUrl"));
+                            }
+
+                            String savedBookId = null;
+                            if (bookData.containsKey("bookId")) {
+                                savedBookId = (String) bookData.get("bookId");
+                            } else if (bookData.containsKey("id")) {
+                                savedBookId = (String) bookData.get("id");
+                            }
+
+                            if (savedBookId != null && !savedBookId.isEmpty()) {
+                                book.setBookId(savedBookId);
+                            } else {
+                                book.setBookId("book_" + bookList.size());
+                            }
+
+                            if (book.getName() != null && !book.getName().isEmpty()) {
+                                bookList.add(book);
+                            }
+                        } catch (Exception ex) {
+                            // Log error but continue with other books
+                        }
+                    }
+
+                    if (bookList.isEmpty()) {
+                        showEmptyLibrary();
+                    } else {
+                        hideEmptyLibrary();
+                        adapter.notifyDataSetChanged();
+                    }
+                });
+    }
     private void hideEmptyLibrary() {
         if (emptyLibraryText != null) {
             emptyLibraryText.setVisibility(View.GONE);

@@ -14,17 +14,6 @@
 
         <!-- User Name -->
 
-        <ImageButton
-            android:id="@+id/btn_change_image"
-            android:layout_width="wrap_content"
-            android:layout_height="28dp"
-            android:layout_gravity="bottom|end"
-            android:background="@drawable/bg_circle_red"
-            android:contentDescription="Change Profile Image"
-            android:padding="4dp"
-            android:src="@drawable/ic_add"
-            tools:ignore="TouchTargetSizeCheck" />
-
         <ImageView
             android:id="@+id/profile_image"
             android:layout_width="100dp"

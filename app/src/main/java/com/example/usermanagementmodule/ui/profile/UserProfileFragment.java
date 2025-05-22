@@ -4,6 +4,9 @@ import android.app.Activity;
 import android.content.Intent;
 import android.net.Uri;
 import android.os.Bundle;
+import android.widget.EditText;
+import android.widget.ImageButton;
+import android.widget.TextView;
 import android.widget.Toast;
 
 import androidx.fragment.app.Fragment;
@@ -16,7 +19,10 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.widget.ImageView;
 import android.widget.Button;
+import com.bumptech.glide.Glide;
 
+import com.google.firebase.storage.FirebaseStorage;
+import com.google.firebase.storage.StorageReference;
 import com.example.usermanagementmodule.R;
 import com.example.usermanagementmodule.model.UserComment;
 import com.example.usermanagementmodule.ui.auth.LoginFragment;
@@ -37,6 +43,9 @@ import java.util.List;
 public class UserProfileFragment extends Fragment {
     private static final int REQUEST_CODE_PICK_IMAGE = 1001;
     private ImageView profileImageView;
+    private TextView userNameTextView;
+    private TextView booksCountTextView;
+    private EditText bioEditText;
 
     // TODO: Rename parameter arguments, choose names that match
     // the fragment initialization parameters, e.g. ARG_ITEM_NUMBER
@@ -93,6 +102,11 @@ public class UserProfileFragment extends Fragment {
         // User is logged in, show profile page
         View view = inflater.inflate(R.layout.fragment_user_profile, container, false);
 
+        userNameTextView = view.findViewById(R.id.user_name);
+        booksCountTextView = view.findViewById(R.id.books_count);
+        bioEditText = view.findViewById(R.id.bio);
+
+
         // Initialize profile image and set click listener
         profileImageView = view.findViewById(R.id.profile_image);
         profileImageView.setOnClickListener(v -> {
@@ -101,6 +115,61 @@ public class UserProfileFragment extends Fragment {
             startActivityForResult(intent, REQUEST_CODE_PICK_IMAGE);
         });
 
+        String userId = FirebaseAuth.getInstance().getCurrentUser().getUid();
+        FirebaseFirestore.getInstance().collection("users")
+                .document(userId)
+                .addSnapshotListener((documentSnapshot, e) -> {
+                    if (e != null || documentSnapshot == null || !documentSnapshot.exists()) return;
+
+                    // Load and set the user name
+                    String name = documentSnapshot.getString("username");
+                    if (name != null && !name.isEmpty()) {
+                        userNameTextView.setText(name);
+                    }
+
+                    // Load and set the profile image
+                    String imageUrl = documentSnapshot.getString("profileImage");
+                    if (imageUrl != null && !imageUrl.isEmpty()) {
+                        Glide.with(this).load(imageUrl).into(profileImageView);
+                    }
+
+                    // Load and set the bio
+                    String bio = documentSnapshot.getString("bio");
+                    if (bio != null && !bio.isEmpty()) {
+                        bioEditText.setText(bio);
+                    } else {
+                        bioEditText.setText("");
+                    }
+
+                    // Get the books array and update the count
+                    List<?> books = (List<?>) documentSnapshot.get("books");
+                    int count = (books != null) ? books.size() : 0;
+                    booksCountTextView.setText("Books: " + count);
+                });
+
+
+        //book counter
+        FirebaseFirestore.getInstance().collection("users")
+                .document(userId)
+                .addSnapshotListener((documentSnapshot, e) -> {
+                    if (e != null || documentSnapshot == null || !documentSnapshot.exists()) return;
+                    // Get the books array and update the count
+                    List<?> books = (List<?>) documentSnapshot.get("books");
+                    int count = (books != null) ? books.size() : 0;
+                    booksCountTextView.setText("Books: " + count);
+                });
+
+        // Save bio on focus lost
+        bioEditText.setOnFocusChangeListener((v, hasFocus) -> {
+            if (!hasFocus) {
+                String newBio = bioEditText.getText().toString();
+                FirebaseFirestore.getInstance().collection("users")
+                        .document(userId)
+                        .update("bio", newBio)
+                        .addOnSuccessListener(aVoid -> Toast.makeText(getContext(), "Bio updated!", Toast.LENGTH_SHORT).show())
+                        .addOnFailureListener(e -> Toast.makeText(getContext(), "Failed to update bio", Toast.LENGTH_SHORT).show());
+            }
+        });
         // Add Sign Out button functionality
         Button signOutButton = view.findViewById(R.id.btnSignOut);
         if (signOutButton != null) {
@@ -119,6 +188,8 @@ public class UserProfileFragment extends Fragment {
                 }
             });
         }
+
+
 
         // Initialize RecyclerView
         RecyclerView recyclerView = view.findViewById(R.id.comments_recycler_view);
@@ -188,14 +259,28 @@ public class UserProfileFragment extends Fragment {
         return loginPromptView;
     }
 
+    private void uploadImageToFirebase(Uri imageUri) {
+        String userId = FirebaseAuth.getInstance().getCurrentUser().getUid();
+        StorageReference storageRef = FirebaseStorage.getInstance().getReference("profile_images/" + userId + ".jpg");
+        storageRef.putFile(imageUri)
+                .addOnSuccessListener(taskSnapshot -> storageRef.getDownloadUrl().addOnSuccessListener(uri -> {
+                    // Save the download URL to Firestore
+                    FirebaseFirestore.getInstance().collection("users")
+                            .document(userId)
+                            .update("profileImage", uri.toString())
+                            .addOnSuccessListener(aVoid -> Toast.makeText(getContext(), "Profile image updated!", Toast.LENGTH_SHORT).show())
+                            .addOnFailureListener(e -> Toast.makeText(getContext(), "Failed to update profile image URL", Toast.LENGTH_SHORT).show());
+                }))
+                .addOnFailureListener(e -> Toast.makeText(getContext(), "Image upload failed", Toast.LENGTH_SHORT).show());
+    }
+
     @Override
     public void onActivityResult(int requestCode, int resultCode, @Nullable Intent data) {
         super.onActivityResult(requestCode, resultCode, data);
-        if (requestCode == REQUEST_CODE_PICK_IMAGE && resultCode == Activity.RESULT_OK && data != null) {
+        if (requestCode == REQUEST_CODE_PICK_IMAGE && resultCode == Activity.RESULT_OK && data != null && data.getData() != null) {
             Uri imageUri = data.getData();
-            // Here you can upload imageUri to Firebase Storage
-            // For now, just show it in the ImageView:
-            profileImageView.setImageURI(imageUri);
+            profileImageView.setImageURI(imageUri); // Show preview
+            uploadImageToFirebase(imageUri);        // Upload to Firebase
         }
     }
 }

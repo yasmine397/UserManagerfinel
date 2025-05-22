@@ -7,6 +7,7 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.widget.ImageView;
 import android.widget.TextView;
+import android.widget.Toast;
 
 import androidx.annotation.NonNull;
 import androidx.fragment.app.FragmentActivity;
@@ -17,8 +18,13 @@ import com.bumptech.glide.Glide; // Or use Picasso if you prefer
 import com.example.usermanagementmodule.R;
 import com.example.usermanagementmodule.book.Book;
 import com.example.usermanagementmodule.book.BookDetail;
+import com.google.firebase.auth.FirebaseAuth;
+import com.google.firebase.firestore.FieldValue;
+import com.google.firebase.firestore.FirebaseFirestore;
 
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 
 public class LibraryBookAdapter extends RecyclerView.Adapter<LibraryBookAdapter.BookViewHolder> {
     private static final String TAG = "LibraryBookAdapter";
@@ -46,17 +52,7 @@ public class LibraryBookAdapter extends RecyclerView.Adapter<LibraryBookAdapter.
             } else {
                 holder.bookName.setText("Unknown Title");
             }
-            
-            // Set book status if available, otherwise hide the status view
-            if (holder.bookStatus != null) {
-                if (book.getStatus() != null && !book.getStatus().isEmpty()) {
-                    holder.bookStatus.setText(book.getStatus());
-                    holder.bookStatus.setVisibility(View.VISIBLE);
-                } else {
-                    // Hide status view if no status available
-                    holder.bookStatus.setVisibility(View.GONE);
-                }
-            }
+
             
             // Load cover image (use Glide or Picasso)
             if (book.getPhoto() != null && !book.getPhoto().isEmpty()) {
@@ -74,6 +70,38 @@ public class LibraryBookAdapter extends RecyclerView.Adapter<LibraryBookAdapter.
         } catch (Exception e) {
             Log.e(TAG, "Error binding view holder: " + e.getMessage(), e);
         }
+
+        holder.btnDelete.setOnClickListener(v -> {
+            String userId = FirebaseAuth.getInstance().getCurrentUser().getUid();
+            String bookIdToDelete = bookList.get(position).getBookId();
+
+            FirebaseFirestore.getInstance().collection("users")
+                    .document(userId)
+                    .get()
+                    .addOnSuccessListener(documentSnapshot -> {
+                        List<Map<String, Object>> books = (List<Map<String, Object>>) documentSnapshot.get("books");
+                        if (books == null) return;
+
+                        // Create a new list without the book to delete
+                        List<Map<String, Object>> updatedBooks = new ArrayList<>();
+                        for (Map<String, Object> b : books) {
+                            if (!bookIdToDelete.equals(b.get("bookId"))) {
+                                updatedBooks.add(b);
+                            }
+                        }
+
+                        // Update Firestore with the new list
+                        FirebaseFirestore.getInstance().collection("users")
+                                .document(userId)
+                                .update("books", updatedBooks)
+                                .addOnSuccessListener(aVoid -> {
+                                    Toast.makeText(v.getContext(), "Book deleted", Toast.LENGTH_SHORT).show();
+                                })
+                                .addOnFailureListener(e -> {
+                                    Toast.makeText(v.getContext(), "Failed to delete book", Toast.LENGTH_SHORT).show();
+                                });
+                    });
+        });
     }
 
     /**
@@ -123,14 +151,15 @@ public class LibraryBookAdapter extends RecyclerView.Adapter<LibraryBookAdapter.
     }
 
     public static class BookViewHolder extends RecyclerView.ViewHolder {
+        public View btnDelete;
         ImageView bookCover;
-        TextView bookName, bookStatus;
+        TextView bookName;
 
         public BookViewHolder(@NonNull View itemView) {
             super(itemView);
             bookCover = itemView.findViewById(R.id.book_cover);
             bookName = itemView.findViewById(R.id.book_name);
-            bookStatus = itemView.findViewById(R.id.book_status);
+            btnDelete = itemView.findViewById(R.id.btnDelete);
         }
     }
 }

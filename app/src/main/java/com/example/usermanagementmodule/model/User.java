@@ -14,6 +14,7 @@ public class User {
     private String imageUrl;
     private ArrayList<Book> books;
     private static ArrayList<Comment> comments;
+    private String bio;
 
     public User(String username, String email, String phoneNumber, String dateOfBirth, String password, String imageUrl) {
         this.username = username;
@@ -24,6 +25,7 @@ public class User {
         this.imageUrl = imageUrl;
         this.books = new ArrayList<>();
         this.comments = new ArrayList<>();
+        this.bio="";
     }
 
     public User(String username, String imageUrl) {
@@ -48,6 +50,9 @@ public class User {
         return username;
     }
 
+    public String getBio() {
+        return bio;
+    }
 
     public String getEmail() {
         return email;
@@ -90,6 +95,9 @@ public class User {
         this.comments = comments;
     }
 
+    public void setBio(String bio) {
+        this.bio = bio;
+    }
     public void setDateOfBirth(String dateOfBirth) {
         this.dateOfBirth = dateOfBirth;
     }
@@ -127,14 +135,14 @@ public class User {
     @Override
     public String toString() {
         return "User{" +
-                "books=" + books +
+                "bio='" + bio + '\'' +
                 ", username='" + username + '\'' +
                 ", email='" + email + '\'' +
                 ", phoneNumber='" + phoneNumber + '\'' +
                 ", dateOfBirth='" + dateOfBirth + '\'' +
                 ", password='" + password + '\'' +
                 ", imageUrl='" + imageUrl + '\'' +
-                ", comments=" + comments +
+                ", books=" + books +
                 '}';
     }
 
