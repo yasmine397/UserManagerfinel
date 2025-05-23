@@ -23,7 +23,7 @@
             android:id="@+id/usernameTextView"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="اسم المستخدم"
+            android:text="user name"
             android:textStyle="bold"
             android:textSize="14sp" />
 
@@ -31,7 +31,7 @@
             android:id="@+id/commentTextView"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="هذا هو التعليق"
+            android:text="comment text"
             android:textSize="13sp" />
     </LinearLayout>
 </LinearLayout>

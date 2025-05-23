@@ -4,11 +4,13 @@ import android.app.Activity;
 import android.content.Intent;
 import android.net.Uri;
 import android.os.Bundle;
+import android.util.Log;
 import android.widget.EditText;
 import android.widget.ImageButton;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import com.google.firebase.firestore.DocumentSnapshot;
 import androidx.fragment.app.Fragment;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
@@ -91,14 +93,14 @@ public class UserProfileFragment extends Fragment {
 
     @Override
     public View onCreateView(LayoutInflater inflater, ViewGroup container,
-            Bundle savedInstanceState) {
-        
+                             Bundle savedInstanceState) {
+
         // Check if user is logged in
         if (FirebaseAuth.getInstance().getCurrentUser() == null) {
             // User not logged in, show login prompt
             return createLoginPromptView(inflater, container);
         }
-        
+
         // User is logged in, show profile page
         View view = inflater.inflate(R.layout.fragment_user_profile, container, false);
 
@@ -177,7 +179,7 @@ public class UserProfileFragment extends Fragment {
                 // Sign out from Firebase
                 FirebaseAuth.getInstance().signOut();
                 Toast.makeText(getContext(), "Signed out successfully", Toast.LENGTH_SHORT).show();
-                
+
                 // Navigate to WelcomeActivity (login screen)
                 if (getActivity() != null) {
                     Intent intent = new Intent(getActivity(), WelcomeActivity.class);
@@ -190,12 +192,11 @@ public class UserProfileFragment extends Fragment {
         }
 
 
-
         // Initialize RecyclerView
         RecyclerView recyclerView = view.findViewById(R.id.comments_recycler_view);
         recyclerView.setLayoutManager(new LinearLayoutManager(getContext()));
         userComments = new ArrayList<>();
-        UserCommentAdapter adapter = new UserCommentAdapter(userComments);
+        UserCommentAdapter adapter = new UserCommentAdapter(userComments); // Make adapter final or a class member
         recyclerView.setAdapter(adapter);
 
         // Load user comments from Firebase
@@ -204,16 +205,160 @@ public class UserProfileFragment extends Fragment {
 
         db.collection("comments")
                 .whereEqualTo("userId", currentUserId)
+                .orderBy("timestamp", com.google.firebase.firestore.Query.Direction.DESCENDING) // Order by timestamp, latest first
                 .get()
                 .addOnSuccessListener(queryDocumentSnapshots -> {
                     userComments.clear();
+                    List<com.example.usermanagementmodule.model.Comment> rawComments = new ArrayList<>();
                     for (DocumentSnapshot doc : queryDocumentSnapshots) {
-                        UserComment comment = doc.toObject(UserComment.class);
-                        userComments.add(comment);
-                    }
-                    adapter.notifyDataSetChanged();
-                });
+                        // Convert raw comment data
+                        String commentText = doc.getString("commentText");
+                        String bookId = doc.getString("bookId");
+                        String commentAuthorId = doc.getString("userId"); // Renamed variable
+                        String userName = doc.getString("userName"); // Get username from comment doc
+                        String userPhotoUrl = doc.getString("userPhotoUrl"); // Get photo URL from comment doc
 
+                        if (commentText != null && bookId != null && commentAuthorId != null && userName != null) {
+                            // Temporarily store raw comment data
+                            // We'll fetch book/rating details next
+                            com.example.usermanagementmodule.model.Comment rawComment = new com.example.usermanagementmodule.model.Comment(null, commentText);
+                            // Add bookId and userId for later lookup
+                            rawComment.setBookId(bookId);
+                            rawComment.setUserId(commentAuthorId); // Use the renamed variable
+                            rawComment.setUserName(userName);
+                            rawComment.setUserPhotoUrl(userPhotoUrl);
+
+                            rawComments.add(rawComment);
+                        }
+                    }
+
+                    // Now, for each raw comment, fetch the additional details needed for UserComment
+                    if (!rawComments.isEmpty()) {
+                        // Fetch user document once to get books array and potentially current username/photo if not in comment doc
+                        db.collection("users").document(currentUserId)
+                                .get()
+                                .addOnSuccessListener(userDocSnapshot -> {
+                                    List<java.util.Map<String, Object>> userBooks = null;
+                                    if (userDocSnapshot.exists()) {
+                                        userBooks = (List<java.util.Map<String, Object>>) userDocSnapshot.get("books");
+                                        // You can also get the official username and photo URL from here if preferred
+                                    }
+
+                                    // Create a list to hold the final UserComment objects temporarily
+                                    List<UserComment> finalUserComments = new ArrayList<>();
+                                    // Counter to track completed rating fetches
+                                    final int[] completedRatingFetches = {0};
+
+                                    // Process each raw comment
+                                    for (com.example.usermanagementmodule.model.Comment rawComment : rawComments) {
+                                        String bookId = rawComment.getBookId();
+                                        String userIdFromComment = rawComment.getUserId(); // Get the author's user ID from the raw comment
+                                        String commentText = rawComment.getCommentText();
+                                        String userName = rawComment.getUserName();
+                                        String userPhotoUrl = rawComment.getUserPhotoUrl();
+
+
+                                        String bookName = "Unknown Book";
+                                        String bookCoverUrl = "";
+                                        String bookStatus = "Not in Library";
+                                        int userRating = 0;
+
+                                        // Try to find book details and status in the user's books array
+                                        if (userBooks != null) {
+                                            for (java.util.Map<String, Object> userBook : userBooks) {
+                                                if (userBook.containsKey("bookId") && userBook.get("bookId").equals(bookId)) {
+                                                    if (userBook.containsKey("title")) bookName = (String) userBook.get("title");
+                                                    if (userBook.containsKey("coverUrl")) bookCoverUrl = (String) userBook.get("coverUrl");
+                                                    if (userBook.containsKey("status")) bookStatus = (String) userBook.get("status"); // Assuming status field exists
+                                                    break; // Found the book in user's library
+                                                } else if (userBook.containsKey("title") && bookId.equalsIgnoreCase((String) userBook.get("title"))) {
+                                                    // Also try matching by title as a fallback, case-insensitive
+                                                    if (userBook.containsKey("title")) bookName = (String) userBook.get("title");
+                                                    if (userBook.containsKey("coverUrl")) bookCoverUrl = (String) userBook.get("coverUrl");
+                                                    if (userBook.containsKey("status")) bookStatus = (String) userBook.get("status"); // Assuming status field exists
+                                                    break; // Found the book by title
+                                                }
+                                            }
+                                        }
+
+                                        // Create final copies of variables needed in the async callback
+                                        final String finalBookName = bookName;
+                                        final String finalBookCoverUrl = bookCoverUrl;
+                                        final String finalBookStatus = bookStatus;
+                                        final String finalCommentText = commentText;
+                                        final String finalUserName = userName;
+                                        final String finalUserPhotoUrl = userPhotoUrl;
+
+
+                                        // Fetch the user's rating for this book
+                                        db.collection("ratings")
+                                                .document(bookId + "_" + userIdFromComment) // Use userIdFromComment here
+                                                .get()
+                                                .addOnSuccessListener(ratingDocSnapshot -> {
+                                                    int rating = 0; // Declare rating variable within this scope
+                                                    if (ratingDocSnapshot.exists() && ratingDocSnapshot.get("rating") != null) {
+                                                        Long ratingLong = ratingDocSnapshot.getLong("rating");
+                                                        if (ratingLong != null) {
+                                                            rating = ratingLong.intValue(); // Assign to the local rating variable
+                                                        }
+                                                    }
+
+                                                    // Create the UserComment object with all gathered details
+                                                    UserComment userComment = new UserComment(
+                                                            finalUserName,
+                                                            finalUserPhotoUrl,
+                                                            finalBookName,
+                                                            finalBookCoverUrl,
+                                                            finalBookStatus,
+                                                            finalCommentText,
+                                                            rating
+                                                    );
+                                                    finalUserComments.add(userComment);
+                                                    completedRatingFetches[0]++;
+                                                    // Check if all ratings have been fetched
+                                                    if (completedRatingFetches[0] == rawComments.size()) {
+                                                        // All data is ready, update the main list and notify adapter
+                                                        userComments.addAll(finalUserComments);
+                                                        adapter.notifyDataSetChanged();
+                                                    }
+
+                                                })
+                                                .addOnFailureListener(e -> {
+                                                    // Handle failure to fetch rating, perhaps log or use default 0
+                                                    Log.e("UserProfile", "Error fetching rating for book " + bookId + ": " + e.getMessage());
+                                                    // Still create the UserComment with default rating
+                                                    UserComment userComment = new UserComment(
+                                                            finalUserName,
+                                                            finalUserPhotoUrl,
+                                                            finalBookName,
+                                                            finalBookCoverUrl,
+                                                            finalBookStatus,
+                                                            finalCommentText,
+                                                            0 // Use default rating on failure
+                                                    );
+                                                    finalUserComments.add(userComment); // Add to the temporary list
+
+                                                    // Increment the completed fetches counter
+                                                    completedRatingFetches[0]++;
+                                                    // Check if all ratings have been fetched
+                                                    if (completedRatingFetches[0] == rawComments.size()) {
+                                                        // All data is ready, update the main list and notify adapter
+                                                        userComments.addAll(finalUserComments);
+                                                        adapter.notifyDataSetChanged();
+                                                    }
+                                                });
+                                    }
+                                });
+                    } else {
+                        adapter.notifyDataSetChanged(); // No comments found
+                    }
+
+                })
+                .addOnFailureListener(e -> {
+                    // Handle failure to fetch comments
+                    Toast.makeText(getContext(), "Error loading comments: " + e.getMessage(), Toast.LENGTH_SHORT).show();
+                    Log.e("UserProfile", "Error loading comments: " + e.getMessage());
+                });
         return view;
     }
 

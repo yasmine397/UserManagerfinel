@@ -180,7 +180,6 @@ public class BookDetail extends Fragment {
         commentEditText = view.findViewById(R.id.commentInput);
         sendButton = view.findViewById(R.id.buttonSend);
         commentsRecyclerView = view.findViewById(R.id.recyclerViewComments);
-
         commentList = new ArrayList<>();
         commentAdapter = new CommentAdapter(commentList);
         commentsRecyclerView.setLayoutManager(new LinearLayoutManager(getContext()));
@@ -208,7 +207,7 @@ public class BookDetail extends Fragment {
 
         // Load average rating
         loadAverageRating();
-        
+
         // Load comments
         loadComments();
 
@@ -218,19 +217,17 @@ public class BookDetail extends Fragment {
         // Send comment
         sendButton.setOnClickListener(v -> {
             if (currentUser != null) {
-                String username = currentUser.getDisplayName();
-                String imageUrl = currentUser.getPhotoUrl() != null ? currentUser.getPhotoUrl().toString() : "";
+                String username = currentUser.getDisplayName(); // Getting username from FirebaseAuth
+                String imageUrl = currentUser.getPhotoUrl() != null ? currentUser.getPhotoUrl().toString() : ""; // Getting photo URL from FirebaseAuth
                 String commentText = commentEditText.getText().toString().trim();
 
                 if (!commentText.isEmpty()) {
-                    User user = new User(username, imageUrl);
-                    Comment newComment = new Comment(user, commentText);
-
+                    // ... (Comment model creation is commented out, data is put directly into map)
                     // Save to Firestore
                     Map<String, Object> commentData = new HashMap<>();
                     commentData.put("userId", currentUser.getUid());
-                    commentData.put("userName", username);
-                    commentData.put("userPhotoUrl", imageUrl);
+                    commentData.put("userName", username ); // Putting username here
+                    commentData.put("userPhotoUrl", imageUrl); // Putting photo URL here
                     commentData.put("bookId", bookId);
                     commentData.put("commentText", commentText);
                     commentData.put("timestamp", com.google.firebase.firestore.FieldValue.serverTimestamp());
@@ -655,23 +652,39 @@ public class BookDetail extends Fragment {
     }
 
     private void loadComments() {
+        Log.d("BookDetail", "Loading comments for bookId: " + bookId);
+
         db.collection("comments")
                 .whereEqualTo("bookId", bookId)
-                .orderBy("timestamp", com.google.firebase.firestore.Query.Direction.ASCENDING)
+                //.orderBy("timestamp", Query.Direction.ASCENDING)
                 .get()
                 .addOnSuccessListener(queryDocumentSnapshots -> {
                     commentList.clear();
                     for (QueryDocumentSnapshot doc : queryDocumentSnapshots) {
+                        String commentText = doc.getString("commentText");
+                        String userId = doc.getString("userId");
                         String userName = doc.getString("userName");
                         String userPhotoUrl = doc.getString("userPhotoUrl");
-                        String commentText = doc.getString("commentText");
-                        User user = new User(userName, userPhotoUrl);
-                        Comment comment = new Comment(user, commentText);
-                        commentList.add(comment);
+                        String bookIdFromDoc = doc.getString("bookId");
+
+                        if (commentText != null && userId != null && userName != null && bookIdFromDoc != null) {
+                            Comment comment = new Comment();
+                            comment.setCommentText(commentText);
+                            comment.setUserId(userId);
+                            comment.setUserName(userName);
+                            comment.setUserPhotoUrl(userPhotoUrl);
+                            comment.setBookId(bookIdFromDoc);
+                            commentList.add(comment);
+                        }
                     }
                     commentAdapter.notifyDataSetChanged();
+                })
+                .addOnFailureListener(e -> {
+                    Log.e("BookDetail", "Error loading comments: " + e.getMessage());
+                    Toast.makeText(getContext(), "Error loading comments.", Toast.LENGTH_SHORT).show();
                 });
     }
+
 
     private void loadAverageRating() {
         db.collection("ratings")

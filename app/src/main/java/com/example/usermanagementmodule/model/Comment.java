@@ -3,12 +3,21 @@ package com.example.usermanagementmodule.model;
 public class Comment {
 
     private String commentText;
-    private User user;
+    private User user; // This is likely used for displaying on BookDetail page
+    private String bookId; // Add this field
+    private String userId; // Add this field
+    private String userName; // Add this field
+    private String userPhotoUrl; // Add this field
 
+    // Existing constructor
     public Comment(User user,String commentText)
     {
         this.user=user;
         this.commentText=commentText;
+    }
+
+    // Add a default constructor (often needed for Firestore deserialization)
+    public Comment() {
     }
 
     public String getCommentText() {
@@ -27,11 +36,49 @@ public class Comment {
         this.user = user;
     }
 
+    // Add getters and setters for the new fields
+    public String getBookId() {
+        return bookId;
+    }
+
+    public void setBookId(String bookId) {
+        this.bookId = bookId;
+    }
+
+    public String getUserId() {
+        return userId;
+    }
+
+    public void setUserId(String userId) {
+        this.userId = userId;
+    }
+
+    public String getUserName() {
+        return userName;
+    }
+
+    public void setUserName(String userName) {
+        this.userName = userName;
+    }
+
+    public String getUserPhotoUrl() {
+        return userPhotoUrl;
+    }
+
+    public void setUserPhotoUrl(String userPhotoUrl) {
+        this.userPhotoUrl = userPhotoUrl;
+    }
+
+
     @Override
     public String toString() {
         return "Comment{" +
                 "commentText='" + commentText + '\'' +
                 ", user=" + user +
+                ", bookId='" + bookId + '\'' +
+                ", userId='" + userId + '\'' +
+                ", userName='" + userName + '\'' +
+                ", userPhotoUrl='" + userPhotoUrl + '\'' +
                 '}';
     }
 }
