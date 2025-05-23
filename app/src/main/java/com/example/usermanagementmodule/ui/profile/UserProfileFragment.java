@@ -242,6 +242,10 @@ public class UserProfileFragment extends Fragment {
                                     if (userDocSnapshot.exists()) {
                                         userBooks = (List<java.util.Map<String, Object>>) userDocSnapshot.get("books");
                                         // You can also get the official username and photo URL from here if preferred
+                                        String officialUserName = userDocSnapshot.getString("name"); // Assuming 'name' is the field for username in user doc
+                                        String officialUserPhotoUrl = userDocSnapshot.getString("photoUrl"); // Assuming 'photoUrl' is the field for photo URL in user doc
+
+                                        // Removed problematic reassignments
                                     }
 
                                     // Create a list to hold the final UserComment objects temporarily
@@ -254,9 +258,23 @@ public class UserProfileFragment extends Fragment {
                                         String bookId = rawComment.getBookId();
                                         String userIdFromComment = rawComment.getUserId(); // Get the author's user ID from the raw comment
                                         String commentText = rawComment.getCommentText();
-                                        String userName = rawComment.getUserName();
-                                        String userPhotoUrl = rawComment.getUserPhotoUrl();
 
+                                        // Determine the final username and photo URL to use
+                                        String finalUserName = rawComment.getUserName(); // Start with the value from the comment
+                                        String finalUserPhotoUrl = rawComment.getUserPhotoUrl(); // Start with the value from the comment
+
+                                        // If official user data is available from the user document, use it
+                                        if (userDocSnapshot.exists()) {
+                                            String officialUserNameFromDoc = userDocSnapshot.getString("name");
+                                            String officialUserPhotoUrlFromDoc = userDocSnapshot.getString("photoUrl");
+
+                                            if (officialUserNameFromDoc != null && !officialUserNameFromDoc.isEmpty()) {
+                                                finalUserName = officialUserNameFromDoc;
+                                            }
+                                            if (officialUserPhotoUrlFromDoc != null && !officialUserPhotoUrlFromDoc.isEmpty()) {
+                                                finalUserPhotoUrl = officialUserPhotoUrlFromDoc;
+                                            }
+                                        }
 
                                         String bookName = "Unknown Book";
                                         String bookCoverUrl = "";
@@ -286,11 +304,12 @@ public class UserProfileFragment extends Fragment {
                                         final String finalBookCoverUrl = bookCoverUrl;
                                         final String finalBookStatus = bookStatus;
                                         final String finalCommentText = commentText;
-                                        final String finalUserName = userName;
-                                        final String finalUserPhotoUrl = userPhotoUrl;
-
 
                                         // Fetch the user's rating for this book
+                                        String finalUserName1 = finalUserName;
+                                        String finalUserPhotoUrl1 = finalUserPhotoUrl;
+                                        String finalUserName2 = finalUserName;
+                                        String finalUserPhotoUrl2 = finalUserPhotoUrl;
                                         db.collection("ratings")
                                                 .document(bookId + "_" + userIdFromComment) // Use userIdFromComment here
                                                 .get()
@@ -305,15 +324,17 @@ public class UserProfileFragment extends Fragment {
 
                                                     // Create the UserComment object with all gathered details
                                                     UserComment userComment = new UserComment(
-                                                            finalUserName,
-                                                            finalUserPhotoUrl,
-                                                            finalBookName,
-                                                            finalBookCoverUrl,
-                                                            finalBookStatus,
-                                                            finalCommentText,
-                                                            rating
+                                                            finalUserName1, // Use the determined username
+                                                            finalUserPhotoUrl1, // Use the determined photo URL
+                                                            finalBookName, // Use final copies
+                                                            finalBookCoverUrl, // Use final copies
+                                                            finalBookStatus, // Use final copies
+                                                            finalCommentText, // Use final copies
+                                                            rating // Use the rating variable from this scope
                                                     );
-                                                    finalUserComments.add(userComment);
+                                                    finalUserComments.add(userComment); // Add to the temporary list
+
+                                                    // Increment the completed fetches counter
                                                     completedRatingFetches[0]++;
                                                     // Check if all ratings have been fetched
                                                     if (completedRatingFetches[0] == rawComments.size()) {
@@ -328,8 +349,8 @@ public class UserProfileFragment extends Fragment {
                                                     Log.e("UserProfile", "Error fetching rating for book " + bookId + ": " + e.getMessage());
                                                     // Still create the UserComment with default rating
                                                     UserComment userComment = new UserComment(
-                                                            finalUserName,
-                                                            finalUserPhotoUrl,
+                                                            finalUserName2, // Use the determined username
+                                                            finalUserPhotoUrl2, // Use the determined photo URL
                                                             finalBookName,
                                                             finalBookCoverUrl,
                                                             finalBookStatus,

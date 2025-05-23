@@ -3,17 +3,19 @@ package com.example.usermanagementmodule.model;
 public class Comment {
 
     private String commentText;
-    private User user; // This is likely used for displaying on BookDetail page
-    private String bookId; // Add this field
-    private String userId; // Add this field
-    private String userName; // Add this field
-    private String userPhotoUrl; // Add this field
+    private User user;
+    private String bookId;
+    private String userName;
+    private String userId;
+    private String userPhotoUrl;
 
     // Existing constructor
     public Comment(User user,String commentText)
     {
         this.user=user;
         this.commentText=commentText;
+        this.userName=getUserName();
+        this.userPhotoUrl=getUserPhotoUrl();
     }
 
     // Add a default constructor (often needed for Firestore deserialization)
