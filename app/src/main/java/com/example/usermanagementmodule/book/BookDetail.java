@@ -20,12 +20,17 @@ import android.widget.RatingBar;
 import android.widget.TextView;
 import android.widget.Toast;
 
-import com.example.usermanagementmodule.model.Comment;
+// Make sure you are importing your UserComment class here
+import com.example.usermanagementmodule.model.UserComment; // Assuming this is the correct package for UserComment
+// You might need to adjust the import for your UserCommentAdapter as well
 import com.example.usermanagementmodule.ui.comment.CommentAdapter;
+import com.example.usermanagementmodule.ui.comment.UserCommentAdapter; // Assuming this is the correct package for UserCommentAdapter
+
 import com.example.usermanagementmodule.ui.library.LibraryFragment;
 import com.example.usermanagementmodule.R;
 import com.example.usermanagementmodule.model.User;
 import com.example.usermanagementmodule.ui.auth.LoginFragment;
+import com.example.usermanagementmodule.utils.FirebaseServices;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.auth.FirebaseUser;
 import com.google.firebase.firestore.DocumentSnapshot;
@@ -51,8 +56,8 @@ public class BookDetail extends Fragment {
     private EditText commentEditText;
     private Button sendButton, readButton, addToLibraryButton;
     private RecyclerView commentsRecyclerView;
-    private CommentAdapter commentAdapter;
-    private ArrayList<Comment> commentList;
+    private UserCommentAdapter commentAdapter;
+    private ArrayList<UserComment> commentList;
     private RatingBar ratingBarAverage, ratingBarUser;
     private TextView ratingValueText;
     private FirebaseFirestore db;
@@ -60,6 +65,7 @@ public class BookDetail extends Fragment {
     private String bookId;
     private String pdfUrl; // To store the PDF URL
     private boolean isInLibrary = false;
+
 
     // TODO: Rename parameter arguments, choose names that match
     // the fragment initialization parameters, e.g. ARG_ITEM_NUMBER
@@ -181,7 +187,7 @@ public class BookDetail extends Fragment {
         sendButton = view.findViewById(R.id.buttonSend);
         commentsRecyclerView = view.findViewById(R.id.recyclerViewComments);
         commentList = new ArrayList<>();
-        commentAdapter = new CommentAdapter(commentList);
+        commentAdapter = new UserCommentAdapter(commentList); // Use UserCommentAdapter
         commentsRecyclerView.setLayoutManager(new LinearLayoutManager(getContext()));
         commentsRecyclerView.setAdapter(commentAdapter);
 
@@ -189,7 +195,7 @@ public class BookDetail extends Fragment {
         ratingBarUser = view.findViewById(R.id.ratingBarUser);
         ratingBarAverage = view.findViewById(R.id.ratingBarAverage);
         ratingValueText = view.findViewById(R.id.ratingValueText);
-        if (currentUser != null) {
+        if (currentUser != null && bookId != null && !bookId.isEmpty()) {
             db.collection("ratings")
                     .document(bookId + "_" + currentUser.getUid())
                     .get()
@@ -197,7 +203,7 @@ public class BookDetail extends Fragment {
                         if (documentSnapshot.exists()) {
                             Long userRating = documentSnapshot.getLong("rating");
                             if (userRating != null) {
-                                ratingBarUser.setRating(userRating);
+                                ratingBarUser.setRating(userRating.floatValue());
                             }
                         }
                     });
@@ -217,30 +223,74 @@ public class BookDetail extends Fragment {
         // Send comment
         sendButton.setOnClickListener(v -> {
             if (currentUser != null) {
-                String username = currentUser.getDisplayName(); // Getting username from FirebaseAuth
-                String imageUrl = currentUser.getPhotoUrl() != null ? currentUser.getPhotoUrl().toString() : ""; // Getting photo URL from FirebaseAuth
                 String commentText = commentEditText.getText().toString().trim();
 
                 if (!commentText.isEmpty()) {
-                    // ... (Comment model creation is commented out, data is put directly into map)
-                    // Save to Firestore
-                    Map<String, Object> commentData = new HashMap<>();
-                    commentData.put("userId", currentUser.getUid());
-                    commentData.put("userName", username ); // Putting username here
-                    commentData.put("userPhotoUrl", imageUrl); // Putting photo URL here
-                    commentData.put("bookId", bookId);
-                    commentData.put("commentText", commentText);
-                    commentData.put("timestamp", com.google.firebase.firestore.FieldValue.serverTimestamp());
+                    // Fetch username and photo URL from Firestore first
+                    db.collection("users")
+                            .document(currentUser.getUid())
+                            .get()
+                            .addOnSuccessListener(userDocSnapshot -> {
+                                String username = currentUser.getDisplayName(); // Default to Firebase Auth display name
+                                String imageUrl = currentUser.getPhotoUrl() != null ? currentUser.getPhotoUrl().toString() : ""; // Default to Firebase Auth photo URL
 
-                    db.collection("comments")
-                            .add(commentData)
-                            .addOnSuccessListener(documentReference -> {
-                                Toast.makeText(getContext(), "Comment added!", Toast.LENGTH_SHORT).show();
-                                commentEditText.setText("");
-                                loadComments();
+                                if (userDocSnapshot.exists()) {
+                                    String firestoreUsername = userDocSnapshot.getString("name");
+                                    String firestoreImageUrl = userDocSnapshot.getString("photoUrl"); // Assuming photoUrl is stored here
+
+                                    if (firestoreUsername != null && !firestoreUsername.isEmpty()) {
+                                        username = firestoreUsername; // Use Firestore name if available
+                                    }
+                                    if (firestoreImageUrl != null && !firestoreImageUrl.isEmpty()) {
+                                        imageUrl = firestoreImageUrl; // Use Firestore photo URL if available
+                                    }
+                                }
+
+                                // Save to Firestore
+                                String bookTitle = "";
+                                String bookCoverUrl = "";
+                                if (args != null) {
+                                    bookTitle = args.getString("title");
+                                    bookCoverUrl = args.getString("coverUrl");
+                                    if (bookCoverUrl == null || bookCoverUrl.isEmpty()) {
+                                        bookCoverUrl = args.getString("imageUrl");
+                                    }
+                                }
+
+                                String bookStatus = "read";
+                                int userRating = (int) ratingBarUser.getRating();
+
+                                // Create a UserComment object
+                                UserComment newComment = new UserComment();
+                                newComment.setUserId(currentUser.getUid());
+                                newComment.setUserName(username);
+                                newComment.setUserPhotoUrl(imageUrl);
+                                newComment.setBookName(bookTitle); // Add book name
+                                newComment.setBookCoverUrl(bookCoverUrl); // Add book cover URL
+                                newComment.setBookStatus(bookStatus); // Add book status
+                                newComment.setUserRating(userRating); // Add user rating
+                                newComment.setCommentText(commentText);
+
+                                FirebaseServices.getInstance().addCommentToUserSubcollection(newComment,
+                                        documentReference -> {
+                                            // Success
+                                            Toast.makeText(getContext(), "Comment added!", Toast.LENGTH_SHORT).show();
+                                            commentEditText.setText("");
+                                            // Reload comments from the subcollection
+                                            loadComments();
+                                        },
+                                        e -> {
+                                            // Failure
+                                            Log.e("BookDetail", "Failed to add comment to subcollection.", e);
+                                            Toast.makeText(getContext(), "Failed to add comment.", Toast.LENGTH_SHORT).show();
+                                        });
+                                // --- END OF MODIFIED CODE ---
+
                             })
                             .addOnFailureListener(e -> {
-                                Toast.makeText(getContext(), "Failed to add comment.", Toast.LENGTH_SHORT).show();
+                                Log.e("BookDetail", "Failed to fetch user profile for comment: " + e.getMessage());
+                                // Handle the case where fetching user profile fails, perhaps inform the user or skip saving
+                                Toast.makeText(getContext(), "Failed to get user info. Cannot add comment.", Toast.LENGTH_SHORT).show();
                             });
                 } else {
                     Toast.makeText(getContext(), "Please enter a comment", Toast.LENGTH_SHORT).show();
@@ -257,7 +307,7 @@ public class BookDetail extends Fragment {
         });
         // User rating
         ratingBarUser.setOnRatingBarChangeListener((ratingBar, rating, fromUser) -> {
-            if (fromUser && currentUser != null) {
+            if (fromUser && currentUser != null && bookId != null && !bookId.isEmpty()) {
                 Map<String, Object> ratingData = new HashMap<>();
                 ratingData.put("bookId", bookId);
                 ratingData.put("userId", currentUser.getUid());
@@ -277,7 +327,7 @@ public class BookDetail extends Fragment {
     }
 
     private void checkIfInLibrary() {
-        if (currentUser == null || bookId == null) return;
+        if (currentUser == null || bookId == null || bookId.isEmpty()) return;
 
         String sanitizedBookId = bookId.replace(" ", "_").replace("/", "_");
 
@@ -653,40 +703,69 @@ public class BookDetail extends Fragment {
 
     private void loadComments() {
         Log.d("BookDetail", "Loading comments for bookId: " + bookId);
+        if (bookId == null || bookId.isEmpty()) {
+            Log.w("BookDetail", "bookId is null or empty, cannot load comments.");
+            return;
+        }
+        if (currentUser == null) {
+            Log.w("BookDetail", "User not logged in, cannot load comments from subcollection.");
+            return;
+        }
 
-        db.collection("comments")
-                .whereEqualTo("bookId", bookId)
-                //.orderBy("timestamp", Query.Direction.ASCENDING)
+        String userId = currentUser.getUid();
+
+        // Fetch comments from the user's subcollection
+        db.collection("users")
+                .document(userId)
+                .collection("comments") // Navigate to the 'comments' subcollection
                 .get()
-                .addOnSuccessListener(queryDocumentSnapshots -> {
-                    commentList.clear();
-                    for (QueryDocumentSnapshot doc : queryDocumentSnapshots) {
-                        String commentText = doc.getString("commentText");
-                        String userId = doc.getString("userId");
-                        String userName = doc.getString("userName");
-                        String userPhotoUrl = doc.getString("userPhotoUrl");
-                        String bookIdFromDoc = doc.getString("bookId");
+                .addOnCompleteListener(task -> {
+                    if (task.isSuccessful()) {
+                        commentList.clear();
+                        for (QueryDocumentSnapshot doc : task.getResult()) {
+                            // Manually extract data and populate a UserComment object
+                            String commentText = doc.getString("commentText");
+                            String docBookId = doc.getString("bookId"); // Get the bookId from the document
+                            String userName = doc.getString("userName");
+                            String userPhotoUrl = doc.getString("userPhotoUrl");
+                            String bookName = doc.getString("bookName");
+                            String bookCoverUrl = doc.getString("bookCoverUrl");
+                            Long userRatingLong = doc.getLong("userRating"); // Get rating as Long
+                            int userRating = userRatingLong != null ? userRatingLong.intValue() : 0; // Convert to int, handle null
+                            if (bookId.equals(docBookId)) {
+                                // Create UserComment using the constructor that matches your class structure
+                                UserComment comment = new UserComment(
+                                        userName,
+                                        userPhotoUrl,
+                                        bookName,
+                                        bookCoverUrl,
+                                        // Assuming bookStatus is not stored in comment document or has a default
+                                        "read", // Provide a default or fetch if stored
+                                        commentText,
+                                        userRating
+                                );
+                                // If you add commentId or userId to UserComment later, you can set them here
+                                // comment.setCommentId(doc.getId());
+                                // comment.setUserId(doc.getString("userId"));
 
-                        if (commentText != null && userId != null && userName != null && bookIdFromDoc != null) {
-                            Comment comment = new Comment();
-                            comment.setCommentText(commentText);
-                            comment.setUserId(userId);
-                            comment.setUserName(userName);
-                            comment.setUserPhotoUrl(userPhotoUrl);
-                            comment.setBookId(bookIdFromDoc);
-                            commentList.add(comment);
+                                commentList.add(comment);
+                            }
                         }
+                        commentAdapter.setComments(commentList); // Update adapter with the filtered list
+                        commentAdapter.notifyDataSetChanged();
+                        Log.d("BookDetail", "Comments loaded and filtered successfully: " + commentList.size());
+                    } else {
+                        Log.e("BookDetail", "Error loading comments from user subcollection: ", task.getException());
+                        Toast.makeText(getContext(), "Error loading comments.", Toast.LENGTH_SHORT).show();
                     }
-                    commentAdapter.notifyDataSetChanged();
-                })
-                .addOnFailureListener(e -> {
-                    Log.e("BookDetail", "Error loading comments: " + e.getMessage());
-                    Toast.makeText(getContext(), "Error loading comments.", Toast.LENGTH_SHORT).show();
                 });
     }
 
-
     private void loadAverageRating() {
+        if (bookId == null || bookId.isEmpty()) {
+            Log.w("BookDetail", "bookId is null or empty, cannot load average rating.");
+            return;
+        }
         db.collection("ratings")
                 .whereEqualTo("bookId", bookId)
                 .get()
@@ -778,5 +857,4 @@ public class BookDetail extends Fragment {
         return formatted;
     }
 }
-
 
