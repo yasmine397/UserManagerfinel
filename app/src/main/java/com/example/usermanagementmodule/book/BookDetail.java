@@ -105,12 +105,12 @@ public class BookDetail extends Fragment {
         if (args != null) {
             bookId = args.getString("bookId");
             String title = args.getString("title");
-            
+
             // If bookId is null, use the title as a fallback identifier
             if (bookId == null || bookId.isEmpty()) {
                 bookId = title; // Using title as identifier if bookId is not available
             }
-            
+
             // Check for both possible parameter names for the cover URL
             String coverUrl = args.getString("coverUrl");
             if (coverUrl == null || coverUrl.isEmpty()) {
@@ -118,10 +118,10 @@ public class BookDetail extends Fragment {
             }
             String description = args.getString("description");
             pdfUrl = args.getString("pdfUrl"); // Get the PDF URL from arguments
-            
+
             TextView bookTitleView = view.findViewById(R.id.bookTitle);
             TextView bookDescView = view.findViewById(R.id.bookDescription);
-            
+
             if (bookTitleView != null) bookTitleView.setText(title);
             if (bookDescView != null) {
                 // Handle null or empty description
@@ -131,9 +131,9 @@ public class BookDetail extends Fragment {
                     // Format the description text
                     description = formatDescription(description);
                 }
-                
+
                 bookDescView.setText(description);
-                
+
                 // Set up a click listener to toggle description expansion if it's long
                 final String fullDescription = description;
                 if (description.length() > 200) {
@@ -149,11 +149,11 @@ public class BookDetail extends Fragment {
                             tv.setEllipsize(android.text.TextUtils.TruncateAt.END);
                         }
                     });
-                    
+
                     // Add a hint that it's expandable
                     bookDescView.append("\n\n(Tap to expand)");
                 }
-                
+
                 // Enable text view to be scrollable for long content
                 bookDescView.setMovementMethod(android.text.method.ScrollingMovementMethod.getInstance());
             }
@@ -165,7 +165,7 @@ public class BookDetail extends Fragment {
         // Initialize read button
         readButton = view.findViewById(R.id.readButton);
         readButton.setOnClickListener(v -> openPdfViewer());
-        
+
         // If no PDF URL is available, disable the read button
         if (pdfUrl == null || pdfUrl.isEmpty()) {
             readButton.setEnabled(false);
@@ -278,9 +278,9 @@ public class BookDetail extends Fragment {
 
     private void checkIfInLibrary() {
         if (currentUser == null || bookId == null) return;
-        
+
         String sanitizedBookId = bookId.replace(" ", "_").replace("/", "_");
-        
+
         db.collection("users")
                 .document(currentUser.getUid())
                 .get()
@@ -291,22 +291,22 @@ public class BookDetail extends Fragment {
                             for (Map<String, Object> book : books) {
                                 String storedBookId = (String) book.get("bookId");
                                 String storedTitle = (String) book.get("title");
-                                
+
                                 // Check if book matches by bookId
                                 if (sanitizedBookId.equals(storedBookId)) {
                                     isInLibrary = true;
                                     updateAddToLibraryButton();
                                     break;
                                 }
-                                
+
                                 // Also check by title if available (case insensitive)
-                                if (storedTitle != null && !storedTitle.isEmpty() && 
-                                    bookId.equalsIgnoreCase(storedTitle)) {
+                                if (storedTitle != null && !storedTitle.isEmpty() &&
+                                        bookId.equalsIgnoreCase(storedTitle)) {
                                     isInLibrary = true;
                                     updateAddToLibraryButton();
                                     break;
                                 }
-                                
+
                                 // Check alternative sanitization
                                 String altSanitizedBookId = bookId.replace("_", " ").replace(" ", "_").replace("/", "_");
                                 if (altSanitizedBookId.equals(storedBookId)) {
@@ -323,7 +323,7 @@ public class BookDetail extends Fragment {
                     Log.e("BookDetail", "Error checking if book is in library: " + e.getMessage());
                 });
     }
-    
+
     private void updateAddToLibraryButton() {
         if (addToLibraryButton != null) {
             if (isInLibrary) {
@@ -345,14 +345,14 @@ public class BookDetail extends Fragment {
                 Log.d("BookDetail", "User not logged in, redirecting to login");
                 // Save book details to temporary storage (could use SharedPreferences in a real implementation)
                 Toast.makeText(getContext(), "Please log in to add books to your library", Toast.LENGTH_SHORT).show();
-                
+
                 // Navigate to login fragment
                 if (getActivity() != null) {
                     // Get the book details to pass to login
                     Bundle bookData = new Bundle();
                     bookData.putString("pendingBookId", bookId);
                     bookData.putString("pendingAction", "addToLibrary");
-                    
+
                     // Navigate to the login fragment with book data
                     getActivity().getSupportFragmentManager()
                             .beginTransaction()
@@ -368,7 +368,7 @@ public class BookDetail extends Fragment {
             String sanitizedBookId = bookId.replace(" ", "_").replace("/", "_");
             // Also have the original bookId for lookup
             String originalBookId = bookId;
-            
+
             // First, get the complete book details from Firestore's books collection
             db.collection("books")
                     .whereEqualTo("name", originalBookId)
@@ -420,25 +420,25 @@ public class BookDetail extends Fragment {
             // Create book entry with data from Firestore
             final Map<String, Object> bookEntry = new HashMap<>();
             bookEntry.put("bookId", sanitizedBookId);
-            
+
             // Get book details from Firestore document
             String title = bookDoc.getString("name");
             String description = bookDoc.getString("deseridsion");
             String coverUrl = bookDoc.getString("photo");
             String pdfUrl = bookDoc.getString("pdfUrl");
             String realestDate = bookDoc.getString("realestDate");
-            
+
             if (title != null) bookEntry.put("title", title);
             if (description != null) bookEntry.put("description", description);
             if (coverUrl != null) bookEntry.put("coverUrl", coverUrl);
             if (pdfUrl != null) bookEntry.put("pdfUrl", pdfUrl);
             if (realestDate != null) bookEntry.put("realestDate", realestDate);
-            
+
             bookEntry.put("addedDate", new java.util.Date());
             bookEntry.put("addedByApp", true);
-            
+
             Log.d("BookDetail", "Adding book with Firestore data: " + bookEntry);
-            
+
             // Check if user document exists and update it
             updateUserWithBookEntry(bookEntry);
         } catch (Exception e) {
@@ -457,18 +457,18 @@ public class BookDetail extends Fragment {
             Log.e("BookDetail", "Cannot add to library - view is null");
             return;
         }
-        
+
         // Get the book details from the UI
         String title = "";
         String description = "";
-        
+
         TextView titleView = view.findViewById(R.id.bookTitle);
         TextView descView = view.findViewById(R.id.bookDescription);
-        
+
         if (titleView != null && titleView.getText() != null) {
             title = titleView.getText().toString();
         }
-        
+
         if (descView != null && descView.getText() != null) {
             description = descView.getText().toString();
             // Remove the "(Tap to expand)" text if present
@@ -476,7 +476,7 @@ public class BookDetail extends Fragment {
                 description = description.substring(0, description.lastIndexOf("\n\n(Tap to expand)"));
             }
         }
-        
+
         // Get cover URL from arguments if available
         String coverUrl = "";
         Bundle args = getArguments();
@@ -486,7 +486,7 @@ public class BookDetail extends Fragment {
                 coverUrl = args.getString("imageUrl"); // Try alternative name
             }
         }
-        
+
         // Create a library book entry
         final Map<String, Object> bookEntry = new HashMap<>();
         bookEntry.put("bookId", sanitizedBookId);
@@ -496,9 +496,9 @@ public class BookDetail extends Fragment {
         bookEntry.put("pdfUrl", pdfUrl);
         bookEntry.put("addedDate", new java.util.Date());
         bookEntry.put("addedByApp", true);
-        
+
         Log.d("BookDetail", "Adding book with UI data (fallback): " + bookEntry);
-        
+
         // Update user document with this book entry
         updateUserWithBookEntry(bookEntry);
     }
@@ -513,12 +513,12 @@ public class BookDetail extends Fragment {
                 .addOnSuccessListener(documentSnapshot -> {
                     if (documentSnapshot.exists()) {
                         List<Map<String, Object>> books = (List<Map<String, Object>>) documentSnapshot.get("books");
-                        
+
                         if (books == null) {
                             // If books field doesn't exist, create it with this book
                             List<Map<String, Object>> newBooks = new ArrayList<>();
                             newBooks.add(bookEntry);
-                            
+
                             db.collection("users")
                                     .document(currentUser.getUid())
                                     .update("books", newBooks)
@@ -527,7 +527,7 @@ public class BookDetail extends Fragment {
                                         Toast.makeText(getContext(), "Book added to your library", Toast.LENGTH_SHORT).show();
                                         isInLibrary = true;
                                         updateAddToLibraryButton();
-                                        
+
                                         // Navigate to library
                                         if (getActivity() != null) {
                                             getActivity().getSupportFragmentManager()
@@ -564,7 +564,7 @@ public class BookDetail extends Fragment {
                                         Toast.makeText(getContext(), "Book added to your library", Toast.LENGTH_SHORT).show();
                                         isInLibrary = true;
                                         updateAddToLibraryButton();
-                                        
+
                                         // Navigate to library
                                         if (getActivity() != null) {
                                             getActivity().getSupportFragmentManager()
@@ -595,11 +595,11 @@ public class BookDetail extends Fragment {
                     } else {
                         // Document doesn't exist - create it
                         Log.d("BookDetail", "User document not found, creating a new one");
-                        
+
                         // First create the books array with this book
                         List<Map<String, Object>> newBooks = new ArrayList<>();
                         newBooks.add(bookEntry);
-                        
+
                         // Create basic user document
                         Map<String, Object> userData = new HashMap<>();
                         userData.put("books", newBooks);
@@ -608,7 +608,7 @@ public class BookDetail extends Fragment {
                         if (currentUser.getDisplayName() != null) {
                             userData.put("name", currentUser.getDisplayName());
                         }
-                        
+
                         // Create the user document
                         db.collection("users")
                                 .document(currentUser.getUid())
@@ -618,7 +618,7 @@ public class BookDetail extends Fragment {
                                     Toast.makeText(getContext(), "Book added to your library", Toast.LENGTH_SHORT).show();
                                     isInLibrary = true;
                                     updateAddToLibraryButton();
-                                    
+
                                     // Navigate to library
                                     if (getActivity() != null) {
                                         getActivity().getSupportFragmentManager()
@@ -721,7 +721,7 @@ public class BookDetail extends Fragment {
             Toast.makeText(getContext(), "No PDF available for this book", Toast.LENGTH_SHORT).show();
             return;
         }
-        
+
         try {
             // Get book title
             String bookTitle = "";
@@ -729,14 +729,14 @@ public class BookDetail extends Fragment {
             if (titleView != null) {
                 bookTitle = titleView.getText().toString();
             }
-            
+
             // Create and start the PDF viewer activity with proper parameters
             // No login check needed - PDF viewing is allowed for all users
             Intent intent = new Intent(getActivity(), PdfViewerActivity.class);
             intent.putExtra("pdf_url", pdfUrl);
             intent.putExtra("BOOK_TITLE", bookTitle);
             startActivity(intent);
-            
+
             Log.d("BookDetail", "Opening PDF viewer with URL: " + pdfUrl);
         } catch (Exception e) {
             Log.e("BookDetail", "Error opening PDF: " + e.getMessage(), e);
@@ -752,15 +752,15 @@ public class BookDetail extends Fragment {
     private String formatDescription(String description) {
         // Trim extra whitespace
         String formatted = description.trim();
-        
+
         // Replace multiple spaces with single spaces
         formatted = formatted.replaceAll("\\s+", " ");
-        
+
         // Ensure proper capitalization of first letter
         if (!formatted.isEmpty()) {
             formatted = formatted.substring(0, 1).toUpperCase() + formatted.substring(1);
         }
-        
+
         // Limit length if needed (with proper ellipsis)
         if (formatted.length() > 1000) {
             // Find a good break point (end of sentence or space)
@@ -771,10 +771,10 @@ public class BookDetail extends Fragment {
             if (breakPoint == -1) {
                 breakPoint = 997;
             }
-            
+
             formatted = formatted.substring(0, breakPoint) + "...";
         }
-        
+
         return formatted;
     }
 }

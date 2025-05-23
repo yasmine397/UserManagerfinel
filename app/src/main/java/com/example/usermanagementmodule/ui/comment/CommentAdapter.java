@@ -13,6 +13,7 @@ import com.example.usermanagementmodule.model.Comment;
 import com.example.usermanagementmodule.R; // Make sure this import is present
 import com.bumptech.glide.Glide; // Assuming you are using Glide for image loading
 
+import java.util.ArrayList;
 import java.util.List;
 
 public class CommentAdapter extends RecyclerView.Adapter<CommentAdapter.CommentViewHolder> {
@@ -57,6 +58,10 @@ public class CommentAdapter extends RecyclerView.Adapter<CommentAdapter.CommentV
     @Override
     public int getItemCount() {
         return commentList.size();
+    }
+
+    public void setComments(ArrayList<Comment> commentList) {
+
     }
 
     public static class CommentViewHolder extends RecyclerView.ViewHolder {

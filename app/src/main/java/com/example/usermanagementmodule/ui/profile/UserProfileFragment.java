@@ -388,25 +388,25 @@ public class UserProfileFragment extends Fragment {
      */
     private View createLoginPromptView(LayoutInflater inflater, ViewGroup container) {
         View loginPromptView = inflater.inflate(R.layout.fragment_login_prompt, container, false);
-        
+
         // If the layout doesn't exist yet, create a simple one
         if (loginPromptView == null) {
             View view = inflater.inflate(R.layout.fragment_user_profile, container, false);
-            
+
             // We'll use the entire view as our root
             ViewGroup rootView = (ViewGroup) view;
             if (rootView != null) {
                 // Clear any existing views
                 rootView.removeAllViews();
-                
+
                 // Add login prompt
                 View loginPrompt = inflater.inflate(R.layout.fragment_login_prompt, rootView, false);
                 rootView.addView(loginPrompt);
             }
-            
+
             return view;
         }
-        
+
         // Set up login button click listener
         Button loginButton = loginPromptView.findViewById(R.id.loginButton);
         if (loginButton != null) {
@@ -421,7 +421,7 @@ public class UserProfileFragment extends Fragment {
                 }
             });
         }
-        
+
         return loginPromptView;
     }
 

@@ -55,6 +55,18 @@ public class UserCommentAdapter extends RecyclerView.Adapter<UserCommentAdapter.
         return commentList.size();
     }
 
+    public void addComment(UserComment newComment) {
+        commentList.add(newComment);
+        notifyItemInserted(commentList.size() - 1);
+    }
+
+
+    public void setComments(List<UserComment> comments) {
+        commentList.clear();
+        commentList.addAll(comments);
+        notifyDataSetChanged();
+    }
+
     public static class UserCommentViewHolder extends RecyclerView.ViewHolder {
         ImageView userPhoto, bookCover;
         TextView userName, bookName, bookStatus, commentText;

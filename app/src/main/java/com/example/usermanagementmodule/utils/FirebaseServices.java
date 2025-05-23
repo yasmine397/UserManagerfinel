@@ -7,11 +7,18 @@ import android.net.Uri;
 import android.util.Log;
 
 import com.example.usermanagementmodule.model.User;
+import com.example.usermanagementmodule.model.UserComment;
 import com.example.usermanagementmodule.ui.main.MainActivity;
 import com.example.usermanagementmodule.ui.main.WelcomeActivity;
+import com.google.android.gms.tasks.OnFailureListener;
+import com.google.android.gms.tasks.OnSuccessListener;
 import com.google.firebase.auth.FirebaseAuth;
+import com.google.firebase.firestore.DocumentReference;
 import com.google.firebase.firestore.FirebaseFirestore;
+import com.google.firebase.firestore.QuerySnapshot;
 import com.google.firebase.storage.FirebaseStorage;
+import com.google.android.gms.tasks.OnCompleteListener;
+
 
 public class FirebaseServices {
 
@@ -135,4 +142,52 @@ public class FirebaseServices {
             }
         }
     }
+
+    public void addCommentToUserSubcollection(UserComment comment, OnSuccessListener<DocumentReference> onSuccessListener, OnFailureListener onFailureListener) {
+        if (auth.getCurrentUser() != null) {
+            String userId = auth.getCurrentUser().getUid();
+            // No need to set userId field on comment object if storing in user's subcollection,
+            // but it might be useful for later queries if you ever switch to a top-level collection.
+            // For consistency with the previous suggestion, I'll keep setting it, but it's optional here.
+            comment.setUserId(userId); // Still good practice to include userId in the document data
+
+            fire.collection("users") // Navigate to the users collection
+                    .document(userId)      // Get the current user's document
+                    .collection("comments") // Navigate to the 'comments' subcollection
+                    .add(comment)         // Add the comment document to the subcollection
+                    .addOnSuccessListener(documentReference -> {
+                        // Set the generated commentId back to the comment object if needed
+                        comment.setCommentId(documentReference.getId());
+                        Log.d(TAG, "Comment added to user subcollection with ID: " + documentReference.getId());
+                        if (onSuccessListener != null) {
+                            onSuccessListener.onSuccess(documentReference);
+                        }
+                    })
+                    .addOnFailureListener(e -> {
+                        Log.w(TAG, "Error adding comment to user subcollection", e);
+                        if (onFailureListener != null) {
+                            onFailureListener.onFailure(e);
+                        }
+                    });
+        } else {
+            Log.w(TAG, "No user logged in to add comment to subcollection.");
+            if (onFailureListener != null) {
+                onFailureListener.onFailure(new Exception("No user logged in"));
+            }
+        }
+    }
+
+    /**
+     * Fetches comments from a specific user's subcollection in Firestore.
+     * @param userId The ID of the user whose comments to fetch from their subcollection.
+     * @param listener Listener for the query results.
+     */
+    public void getCommentsFromUserSubcollection(String userId, OnCompleteListener<QuerySnapshot> listener) {
+        fire.collection("users") // Navigate to the users collection
+                .document(userId)      // Get the specific user's document
+                .collection("comments") // Navigate to the 'comments' subcollection
+                .get()
+                .addOnCompleteListener(listener);
+    }
+
 }

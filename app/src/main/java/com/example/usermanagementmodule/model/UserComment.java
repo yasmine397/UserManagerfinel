@@ -7,9 +7,10 @@ public class UserComment {
     private String bookStatus; // "read" or"want to read" or "not read"
     private String commentText;
     private int userRating;
+    private String commentId;
+    private String userId;
 
-
-    public  UserComment(String userName, String userPhotoUrl, String bookName, String bookCoverUrl, String bookStatus, String commentText, int userRating) {
+    public UserComment(String userName, String userPhotoUrl, String bookName, String bookCoverUrl, String bookStatus, String commentText, int userRating) { // Add userId to constructor
         this.userName = userName;
         this.userPhotoUrl = userPhotoUrl;
         this.bookName = bookName;
@@ -17,8 +18,9 @@ public class UserComment {
         this.bookStatus = bookStatus;
         this.commentText = commentText;
         this.userRating = userRating;
+        this.userId = userId;
     }
-
+    public UserComment() {}
 
     public String getUserName() { return userName; }
     public void setUserName(String userName) { this.userName = userName; }
@@ -41,10 +43,18 @@ public class UserComment {
     public int getUserRating() { return userRating; }
     public void setUserRating(int userRating) { this.userRating = userRating; }
 
+    public String getCommentId() { return commentId; } // Add getter for commentId
+    public void setCommentId(String commentId) { this.commentId = commentId; } // Add setter for commentId
+
+    public String getUserId() { return userId; } // Add getter for userId
+    public void setUserId(String userId) { this.userId = userId; } // Add setter for userId
+
     @Override
     public String toString() {
         return "UserProfileComment{" +
-                "bookCoverUrl='" + bookCoverUrl + '\'' +
+                "commentId='" + commentId + '\'' + // Include commentId in toString
+                "userId='" + userId + '\'' +       // Include userId in toString
+                ", bookCoverUrl='" + bookCoverUrl + '\'' +
                 ", userName='" + userName + '\'' +
                 ", userPhotoUrl='" + userPhotoUrl + '\'' +
                 ", bookName='" + bookName + '\'' +
