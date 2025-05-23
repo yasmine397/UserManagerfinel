@@ -14,8 +14,6 @@ public class Comment {
     {
         this.user=user;
         this.commentText=commentText;
-        this.userName=getUserName();
-        this.userPhotoUrl=getUserPhotoUrl();
     }
 
     // Add a default constructor (often needed for Firestore deserialization)
